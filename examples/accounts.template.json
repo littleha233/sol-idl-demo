@@ -1,0 +1,6 @@
+{
+  "owner": "YourOwnerPubkey",
+  "config": "YourConfigPdaPubkey",
+  "delegate": "DelegatePubkey",
+  "permission_account": "PermissionPdaPubkey"
+}

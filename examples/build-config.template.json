@@ -1,0 +1,11 @@
+{
+  "feePayer": "YourFeePayerPubkey",
+  "recentBlockhash": "RecentBlockhashBase58",
+  "computeUnitLimit": 250000,
+  "computeUnitPriceMicroLamports": 1000,
+  "nonce": {
+    "nonceAccount": "NonceAccountPubkey",
+    "nonceAuthority": "NonceAuthorityPubkey",
+    "nonceValue": "DurableNonceValueBase58"
+  }
+}
