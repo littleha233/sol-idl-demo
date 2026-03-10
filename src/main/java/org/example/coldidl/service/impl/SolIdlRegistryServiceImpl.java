@@ -41,9 +41,6 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
         List<ContractInfoDto> out = new ArrayList<ContractInfoDto>();
         for (int i = 0; i < contracts.size(); i++) {
             JSONObject contract = contracts.getJSONObject(i);
-            if (!"SOL".equalsIgnoreCase(contract.getString("chainName"))) {
-                continue;
-            }
             out.add(toContractInfo(contract));
         }
         return out;
@@ -51,7 +48,7 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
 
     @Override
     public List<OperationInfoDto> listOperations(String contractId) {
-        JSONObject contract = findSolContractById(contractId);
+        JSONObject contract = findContractById(contractId);
         JSONArray operations = contract.getJSONArray("operationList");
         if (operations == null) {
             return Collections.emptyList();
@@ -208,7 +205,7 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
     }
 
     private OpCtx findOpCtx(String contractId, String operationId) {
-        JSONObject contract = findSolContractById(contractId);
+        JSONObject contract = findContractById(contractId);
         JSONArray operations = contract.getJSONArray("operationList");
         if (operations == null) {
             throw new IllegalArgumentException("operationList is missing for contractId=" + contractId);
@@ -225,7 +222,7 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
         throw new IllegalArgumentException("Operation not found by contractId=" + contractId + ", operationId=" + operationId);
     }
 
-    private JSONObject findSolContractById(String contractId) {
+    private JSONObject findContractById(String contractId) {
         if (isBlank(contractId)) {
             throw new IllegalArgumentException("contractId is required");
         }
@@ -235,14 +232,11 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
         }
         for (int i = 0; i < contracts.size(); i++) {
             JSONObject contract = contracts.getJSONObject(i);
-            if (!"SOL".equalsIgnoreCase(contract.getString("chainName"))) {
-                continue;
-            }
             if (contractId.equals(contract.getString("contractId"))) {
                 return contract;
             }
         }
-        throw new IllegalArgumentException("SOL contract not found by contractId=" + contractId);
+        throw new IllegalArgumentException("contract not found by contractId=" + contractId);
     }
 
     private Path resolveIdlPath(JSONObject contract, JSONObject operation) {

@@ -3,7 +3,6 @@ package org.example.project.dto;
 public class BuildTxReq<T> {
     private String from;
     private T ext;
-    private String abi;
 
     public String getFrom() {
         return from;
@@ -19,13 +18,5 @@ public class BuildTxReq<T> {
 
     public void setExt(T ext) {
         this.ext = ext;
-    }
-
-    public String getAbi() {
-        return abi;
-    }
-
-    public void setAbi(String abi) {
-        this.abi = abi;
     }
 }

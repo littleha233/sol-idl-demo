@@ -72,7 +72,7 @@ IDL（Anchor IDL）提供：
 
 ### Step 2: 解析目标 instruction
 
-先在 `contracts-config.json` 中按 `chainName=SOL + contractAddress + operationCode` 匹配 operation，拿到 `idlPath + instructionName + accounts`，再在 IDL `instructions[]` 中按 `name` 匹配目标指令并拿到：
+先在 `contracts-config.json` 中按 `contractAddress + operationCode` 匹配 operation，拿到 `idlPath + instructionName + accounts`，再在 IDL `instructions[]` 中按 `name` 匹配目标指令并拿到：
 
 - 账户定义
 - 参数定义

@@ -46,9 +46,6 @@ public class SolContractRegistry {
 
         for (int i = 0; i < contracts.size(); i++) {
             JSONObject contractNode = contracts.getJSONObject(i);
-            if (!"SOL".equalsIgnoreCase(contractNode.getString("chainName"))) {
-                continue;
-            }
             String configuredAddress = contractNode.getString("contractAddress");
             if (!contractAddress.equals(configuredAddress)) {
                 continue;
@@ -96,7 +93,7 @@ public class SolContractRegistry {
         }
 
         throw new IllegalArgumentException(
-                "SOL operation not found by contractAddress=" + contractAddress + ", operationCode=" + operationCode
+                "operation not found by contractAddress=" + contractAddress + ", operationCode=" + operationCode
         );
     }
 
