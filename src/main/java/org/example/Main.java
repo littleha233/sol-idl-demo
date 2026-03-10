@@ -3,51 +3,44 @@ package org.example;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import org.example.project.IdlTemplateTxReq;
 import org.example.project.SolIdlProject;
+import org.example.project.config.SolContractRegistry;
+import org.example.project.dto.BuildTxReq;
+import org.example.project.dto.SolIdlTxBuildExt;
 import org.example.sol.Base58;
 import org.example.sol.LegacyTransactionSerializer;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
 public class Main {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 4) {
+        if (args.length < 5) {
             printUsage();
             return;
         }
 
-        Path idlPath = Path.of(args[0]);
-        String instructionName = args[1];
-        Path accountsPath = Path.of(args[2]);
-        Path ixArgsPath = Path.of(args[3]);
+        Path contractsConfigPath = Path.of(args[0]);
+        String from = args[1];
+        String contractAddress = args[2];
+        String operationCode = args[3];
+        Path paramListPath = Path.of(args[4]);
 
-        JsonNode accounts = readJson(accountsPath);
-        JsonNode ixArgs = readJson(ixArgsPath);
+        SolIdlProject project = new SolIdlProject(contractsConfigPath);
+        BuildTxReq<SolIdlTxBuildExt> req = new BuildTxReq<SolIdlTxBuildExt>();
+        req.setFrom(from);
+        req.setExt(buildExt(contractAddress, operationCode, paramListPath));
 
-        // local runtime variable, same style as project-level from parameter.
-        String fromAddress = accounts.path("authority").asText("8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H");
-        IdlTemplateTxReq req = new IdlTemplateTxReq(
-                fromAddress,
-                idlPath,
-                instructionName,
-                toStringMap(accounts),
-                toObjectMap(ixArgs)
-        );
-
-        SolIdlProject project = new SolIdlProject();
-        LegacyTransactionSerializer.BuildResult result = project.buildIdlTemplateTx(req);
-
-        JsonNode idl = readJson(idlPath);
+        LegacyTransactionSerializer.BuildResult result = project.buildTx(req);
+        SolContractRegistry.ResolvedSolOperation operation = project.resolveOperation(contractAddress, operationCode);
+        JsonNode idl = readJson(operation.getIdlPath());
 
         ObjectNode output = MAPPER.createObjectNode();
-        output.put("instruction", instructionName);
+        output.put("operationCode", operationCode);
+        output.put("instruction", operation.getInstructionName());
         output.put("programId", idl.path("address").asText());
         output.put("messageBase64", result.getMessageBase64());
         output.put("messageBase58", Base58.encode(result.getMessageBytes()));
@@ -57,6 +50,20 @@ public class Main {
         output.set("accountKeys", MAPPER.valueToTree(result.getAccountKeys()));
 
         System.out.println(MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(output));
+    }
+
+    private static SolIdlTxBuildExt buildExt(String contractAddress, String operationCode, Path paramListPath) throws Exception {
+        JsonNode paramListNode = readJson(paramListPath);
+        if (!paramListNode.isArray()) {
+            throw new IllegalArgumentException("paramList json must be an array");
+        }
+        List<Object> paramList = MAPPER.convertValue(paramListNode, List.class);
+
+        SolIdlTxBuildExt ext = new SolIdlTxBuildExt();
+        ext.setTo(contractAddress);
+        ext.setOperationCode(operationCode);
+        ext.setParamList(paramList);
+        return ext;
     }
 
     private static JsonNode readJson(Path path) throws Exception {
@@ -70,46 +77,13 @@ public class Main {
         String usage =
                 "Usage:\n" +
                 "  java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \\\n" +
-                "    <idl.json> <instructionName> <accounts.json> <ixArgs.json>\n\n" +
+                "    <contracts-config.json> <from> <contractAddress> <operationCode> <param-list.json>\n\n" +
                 "Notes:\n" +
-                "- 运行时参数（nonce、gasPrice、gasLimit）在 SolIdlProject 内部局部变量 mock。\n" +
-                "- from 参数由方法参数传递（参考 SolProject 风格），不放在配置文件。\n" +
+                "- contracts-config.json 内定义 SOL operation 对应的 idlPath/instructionName/accounts 模板。\n" +
+                "- from 通过请求参数传入，不放在配置文件。\n" +
+                "- gas 与 nonce 在 SolIdlProject 内部局部 mock。\n" +
+                "- param-list.json 为数组，顺序必须与 IDL args 顺序一致。\n" +
                 "- 该工具只构建 legacy 交易，不签名。\n";
         System.out.println(usage);
-    }
-
-    private static Map<String, String> toStringMap(JsonNode node) {
-        Map<String, String> out = new LinkedHashMap<String, String>();
-        flattenStringMap(node, "", out);
-        return out;
-    }
-
-    private static Map<String, Object> toObjectMap(JsonNode node) {
-        Map<String, Object> out = new LinkedHashMap<String, Object>();
-        if (node == null || !node.isObject()) {
-            return out;
-        }
-        Iterator<Map.Entry<String, JsonNode>> it = node.fields();
-        while (it.hasNext()) {
-            Map.Entry<String, JsonNode> e = it.next();
-            out.put(e.getKey(), MAPPER.convertValue(e.getValue(), Object.class));
-        }
-        return out;
-    }
-
-    private static void flattenStringMap(JsonNode node, String prefix, Map<String, String> out) {
-        if (node == null || !node.isObject()) {
-            return;
-        }
-        Iterator<Map.Entry<String, JsonNode>> it = node.fields();
-        while (it.hasNext()) {
-            Map.Entry<String, JsonNode> e = it.next();
-            String key = prefix.isEmpty() ? e.getKey() : prefix + "." + e.getKey();
-            if (e.getValue() != null && e.getValue().isObject()) {
-                flattenStringMap(e.getValue(), key, out);
-            } else {
-                out.put(key, e.getValue().asText());
-            }
-        }
     }
 }

@@ -28,9 +28,9 @@ IDL（Anchor IDL）提供：
 
 传入 3 类参数：
 
-- `accounts.json`：指令账户的具体公钥
-- `args.json`：指令入参（例如 `pubkey/u64/bool/string` 等）
-- 运行时局部变量：`fromAddress/recentBlockhash/computeGasLimit/computeGasPrice/nonce`（当前不从配置文件读取）
+- `from + contractAddress + operationCode + paramList`（请求参数，风格对齐 EthAbiProject）
+- `contracts-config.json`（统一配置，SOL operation 内含 `solIdl.idlPath/instructionName/accounts`）
+- 运行时局部变量：`recentBlockhash/computeGasLimit/computeGasPrice/nonce`（当前不从配置文件读取）
 
 ### 1.3 Borsh 编码决定“data 怎么写”
 
@@ -63,15 +63,16 @@ IDL（Anchor IDL）提供：
 
 `Main` 读取：
 
-- `idl.json`
-- `instructionName`
-- `accounts.json`
-- `args.json`
+- `contracts-config.json`
+- `from`
+- `contractAddress`
+- `operationCode`
+- `paramList.json`
 - 运行时变量（局部 mock）
 
 ### Step 2: 解析目标 instruction
 
-在 IDL `instructions[]` 中按 `name` 匹配目标指令，并拿到：
+先在 `contracts-config.json` 中按 `chainName=SOL + contractAddress + operationCode` 匹配 operation，拿到 `idlPath + instructionName + accounts`，再在 IDL `instructions[]` 中按 `name` 匹配目标指令并拿到：
 
 - 账户定义
 - 参数定义
@@ -81,7 +82,7 @@ IDL（Anchor IDL）提供：
 
 - discriminator 优先使用 IDL 提供值
 - 若 IDL 无 discriminator，回退 Anchor 规则：`sha256("global:<ix_name>")` 前 8 字节
-- 按参数顺序做 Borsh 编码并拼接
+- 按参数顺序读取 `paramList` 做 Borsh 编码并拼接
 
 ### Step 4: 生成指令列表
 

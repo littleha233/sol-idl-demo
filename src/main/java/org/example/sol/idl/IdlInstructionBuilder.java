@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -21,7 +22,7 @@ public class IdlInstructionBuilder {
             Path idlPath,
             String instructionName,
             Map<String, String> accounts,
-            Map<String, Object> args
+            List<Object> paramList
     ) throws Exception {
         JsonNode idlRoot = MAPPER.readTree(Files.readString(idlPath));
         JsonNode instructionNode = findInstruction(idlRoot, instructionName);
@@ -42,7 +43,7 @@ public class IdlInstructionBuilder {
             metas.add(new AccountMeta(pubkey, spec.signer, spec.writable));
         }
 
-        byte[] data = encodeInstructionData(instructionNode, args);
+        byte[] data = encodeInstructionData(instructionNode, paramList);
         return new Instruction(programId, metas, data);
     }
 
@@ -59,19 +60,29 @@ public class IdlInstructionBuilder {
         throw new IllegalArgumentException("Instruction not found in IDL: " + instructionName);
     }
 
-    private byte[] encodeInstructionData(JsonNode instructionNode, Map<String, Object> args) {
+    private byte[] encodeInstructionData(JsonNode instructionNode, List<Object> paramList) {
+        List<Object> params = paramList == null ? Collections.<Object>emptyList() : paramList;
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.writeBytes(BorshEncoder.discriminatorFromIdlOrAnchor(instructionNode));
 
         JsonNode argsDef = instructionNode.get("args");
-        if (argsDef != null && argsDef.isArray()) {
-            for (JsonNode argDef : argsDef) {
-                String name = requireText(argDef.get("name"), "arg.name");
-                JsonNode type = argDef.get("type");
-                Object value = args.get(name);
-                JsonNode valueNode = value == null ? NullNode.getInstance() : MAPPER.valueToTree(value);
-                out.writeBytes(BorshEncoder.encodeType(type, valueNode));
+        if (argsDef == null || !argsDef.isArray()) {
+            if (!params.isEmpty()) {
+                throw new IllegalArgumentException("paramList must be empty when instruction args are empty");
             }
+            return out.toByteArray();
+        }
+        if (argsDef.size() != params.size()) {
+            throw new IllegalArgumentException(
+                    "paramList size mismatch, expected=" + argsDef.size() + ", actual=" + params.size()
+            );
+        }
+        for (int i = 0; i < argsDef.size(); i++) {
+            JsonNode argDef = argsDef.get(i);
+            JsonNode type = argDef.get("type");
+            Object value = params.get(i);
+            JsonNode valueNode = value == null ? NullNode.getInstance() : MAPPER.valueToTree(value);
+            out.writeBytes(BorshEncoder.encodeType(type, valueNode));
         }
         return out.toByteArray();
     }

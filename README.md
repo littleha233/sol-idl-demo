@@ -1,6 +1,6 @@
 # sol-idl-demo
 
-输入 `IDL + instruction 参数 + account 参数`，构建一笔 **未签名 legacy Solana 交易**。
+输入 `contracts 配置 + from + contractAddress + operationCode + paramList`，构建一笔 **未签名 legacy Solana 交易**。
 
 当前采用 `SolProject` 风格：
 
@@ -18,17 +18,18 @@ mvn -q package
 
 ```bash
 java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \
-  /path/to/idl.json \
-  grant_permission \
-  examples/accounts.template.json \
-  examples/ix-args.template.json
+  testdata/contracts-config.json \
+  8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H \
+  BHbxLfy5YPYKyrsTXr8cVzBnyKJYY9CGs5ozMzctKxvf \
+  set_safe \
+  testdata/set-safe/param-list.json
 ```
 
 ## 功能点
 
-- 从 IDL 自动读取 instruction 定义
-- 按 IDL args 做 Borsh 编码（含 Anchor discriminator）
-- 通过局部变量 mock 运行时参数：`fromAddress`、`computeGasLimit`、`computeGasPrice`
+- 从统一 `contracts-config.json` 读取 SOL operation，并定位 IDL 元数据
+- 按 IDL args 顺序读取 `paramList` 并做 Borsh 编码（含 Anchor discriminator）
+- 通过局部变量 mock 运行时参数：`computeGasLimit`、`computeGasPrice`
 - 支持 durable nonce（可选）
 - 输出：
   - message base64/base58

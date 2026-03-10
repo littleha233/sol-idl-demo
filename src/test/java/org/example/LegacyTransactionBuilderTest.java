@@ -2,16 +2,15 @@ package org.example;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.project.IdlTemplateTxReq;
 import org.example.project.SolIdlProject;
+import org.example.project.dto.BuildTxReq;
+import org.example.project.dto.SolIdlTxBuildExt;
 import org.example.sol.LegacyTransactionSerializer;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,22 +18,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LegacyTransactionBuilderTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
-    private static final Path TESTDATA_DIR = Path.of("testdata", "set-safe");
+    private static final Path ROOT_TESTDATA_DIR = Path.of("testdata");
+    private static final Path SET_SAFE_TESTDATA_DIR = ROOT_TESTDATA_DIR.resolve("set-safe");
 
     @Test
-    void buildLegacyTxFromRealSetSafeIdlByProjectStyle() throws Exception {
-        String instructionName = Files.readString(TESTDATA_DIR.resolve("instruction-name.txt")).trim();
-        JsonNode accounts = readJson("accounts.json");
-        JsonNode args = readJson("args.json");
-        IdlTemplateTxReq request = new IdlTemplateTxReq(
-                "8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H",
-                TESTDATA_DIR.resolve("idl.json"),
-                instructionName,
-                toStringMap(accounts),
-                toObjectMap(args)
-        );
-        SolIdlProject project = new SolIdlProject();
-        LegacyTransactionSerializer.BuildResult result = project.buildIdlTemplateTx(request);
+    void buildLegacyTxFromSolContractConfigAndIdlParamList() throws Exception {
+        BuildTxReq<SolIdlTxBuildExt> request = new BuildTxReq<SolIdlTxBuildExt>();
+        request.setFrom("8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H");
+
+        SolIdlTxBuildExt ext = new SolIdlTxBuildExt();
+        ext.setTo("BHbxLfy5YPYKyrsTXr8cVzBnyKJYY9CGs5ozMzctKxvf");
+        ext.setOperationCode("set_safe");
+        ext.setParamList(readParamList("param-list.json"));
+        request.setExt(ext);
+
+        SolIdlProject project = new SolIdlProject(ROOT_TESTDATA_DIR.resolve("contracts-config.json"));
+        LegacyTransactionSerializer.BuildResult result = project.buildTx(request);
 
         assertFalse(result.getMessageBase64().isBlank());
         assertFalse(result.getUnsignedTransactionBase64().isBlank());
@@ -44,27 +43,8 @@ class LegacyTransactionBuilderTest {
         assertTrue(result.getAccountKeys().contains("G413572PbWwbmEHkZ7WJePXLmaHp8AFnTUn9Hw4iUnLx"));
     }
 
-    private JsonNode readJson(String filename) throws Exception {
-        return MAPPER.readTree(Files.readString(TESTDATA_DIR.resolve(filename)));
-    }
-
-    private static Map<String, String> toStringMap(JsonNode node) {
-        Map<String, String> out = new LinkedHashMap<String, String>();
-        Iterator<Map.Entry<String, JsonNode>> it = node.fields();
-        while (it.hasNext()) {
-            Map.Entry<String, JsonNode> e = it.next();
-            out.put(e.getKey(), e.getValue().asText());
-        }
-        return out;
-    }
-
-    private static Map<String, Object> toObjectMap(JsonNode node) {
-        Map<String, Object> out = new LinkedHashMap<String, Object>();
-        Iterator<Map.Entry<String, JsonNode>> it = node.fields();
-        while (it.hasNext()) {
-            Map.Entry<String, JsonNode> e = it.next();
-            out.put(e.getKey(), MAPPER.convertValue(e.getValue(), Object.class));
-        }
-        return out;
+    private List<Object> readParamList(String filename) throws Exception {
+        JsonNode node = MAPPER.readTree(Files.readString(SET_SAFE_TESTDATA_DIR.resolve(filename)));
+        return MAPPER.convertValue(node, List.class);
     }
 }
