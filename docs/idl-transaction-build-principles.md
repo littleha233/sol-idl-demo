@@ -27,7 +27,7 @@ IDL（Anchor IDL）提供：
 
 - `accounts.json`：指令账户的具体公钥
 - `args.json`：指令入参（例如 `pubkey/u64/bool/string` 等）
-- `build-config.json`：交易级配置（`feePayer/recentBlockhash/computeUnitLimit/computeUnitPrice/nonce`）
+- 运行时局部变量：`fromAddress/recentBlockhash/computeGasLimit/computeGasPrice/nonce`（当前不从配置文件读取）
 
 ### 1.3 Borsh 编码决定“data 怎么写”
 
@@ -64,7 +64,7 @@ IDL（Anchor IDL）提供：
 - `instructionName`
 - `accounts.json`
 - `args.json`
-- `build-config.json`
+- 运行时变量（局部 mock）
 
 ### Step 2: 解析目标 instruction
 

@@ -22,16 +22,25 @@ class LegacyTransactionBuilderTest {
         String instructionName = Files.readString(TESTDATA_DIR.resolve("instruction-name.txt")).trim();
         JsonNode accounts = readJson("accounts.json");
         JsonNode args = readJson("args.json");
-        JsonNode configJson = readJson("build-config.json");
 
         LegacyTransactionBuilder builder = new LegacyTransactionBuilder();
-        LegacyTransactionBuilder.BuildResult result = builder.build(
+        LegacyTransactionBuilder.RuntimeOptions runtimeOptions =
+                new LegacyTransactionBuilder.RuntimeOptions(
+                        "8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H",
+                        "3smDPkLLW8pUE3NADVQ4tMsANRvDWkfb6xm5ydj5Lc7n",
+                        Integer.valueOf(200_000),
+                        Long.valueOf(1_000L),
+                        null
+                );
+
+        LegacyTransactionBuilder.BuildRequest request = LegacyTransactionBuilder.BuildRequest.fromJson(
                 idl,
                 instructionName,
-                args,
                 accounts,
-                LegacyTransactionBuilder.BuildConfig.fromJson(configJson)
+                args,
+                runtimeOptions
         );
+        LegacyTransactionBuilder.BuildResult result = builder.build(request);
 
         assertFalse(result.messageBase64().isBlank());
         assertFalse(result.unsignedTransactionBase64().isBlank());

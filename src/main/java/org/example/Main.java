@@ -13,7 +13,7 @@ public class Main {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 5) {
+        if (args.length < 4) {
             printUsage();
             return;
         }
@@ -22,17 +22,37 @@ public class Main {
         String instructionName = args[1];
         Path accountsPath = Path.of(args[2]);
         Path ixArgsPath = Path.of(args[3]);
-        Path configPath = Path.of(args[4]);
 
         JsonNode idl = readJson(idlPath);
         JsonNode accounts = readJson(accountsPath);
         JsonNode ixArgs = readJson(ixArgsPath);
-        JsonNode configJson = readJson(configPath);
-
-        LegacyTransactionBuilder.BuildConfig config = LegacyTransactionBuilder.BuildConfig.fromJson(configJson);
         LegacyTransactionBuilder builder = new LegacyTransactionBuilder();
-        LegacyTransactionBuilder.BuildResult result =
-                builder.build(idl, instructionName, ixArgs, accounts, config);
+
+        // Mock runtime variables (you said you'll handle them later).
+        String fromAddress = accounts.path("authority").asText("8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H");
+        String mockedRecentBlockhash = "3smDPkLLW8pUE3NADVQ4tMsANRvDWkfb6xm5ydj5Lc7n";
+        Integer mockedComputeGasLimit = Integer.valueOf(200_000);
+        Long mockedComputeGasPrice = Long.valueOf(1_000L);
+
+        LegacyTransactionBuilder.RuntimeOptions runtimeOptions =
+                new LegacyTransactionBuilder.RuntimeOptions(
+                        fromAddress,
+                        mockedRecentBlockhash,
+                        mockedComputeGasLimit,
+                        mockedComputeGasPrice,
+                        null
+                );
+
+        LegacyTransactionBuilder.BuildRequest request =
+                LegacyTransactionBuilder.BuildRequest.fromJson(
+                        idl,
+                        instructionName,
+                        accounts,
+                        ixArgs,
+                        runtimeOptions
+                );
+
+        LegacyTransactionBuilder.BuildResult result = builder.build(request);
 
         ObjectNode output = MAPPER.createObjectNode();
         output.put("instruction", instructionName);
@@ -58,21 +78,10 @@ public class Main {
         String usage =
                 "Usage:\n" +
                 "  java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \\\n" +
-                "    <idl.json> <instructionName> <accounts.json> <ixArgs.json> <buildConfig.json>\n\n" +
-                "buildConfig.json example:\n" +
-                "{\n" +
-                "  \"feePayer\": \"YourFeePayerPubkey\",\n" +
-                "  \"recentBlockhash\": \"RecentBlockhashBase58\",\n" +
-                "  \"computeUnitLimit\": 250000,\n" +
-                "  \"computeUnitPriceMicroLamports\": 1000,\n" +
-                "  \"nonce\": {\n" +
-                "    \"nonceAccount\": \"NonceAccountPubkey\",\n" +
-                "    \"nonceAuthority\": \"NonceAuthorityPubkey\",\n" +
-                "    \"nonceValue\": \"DurableNonceValueBase58\"\n" +
-                "  }\n" +
-                "}\n\n" +
+                "    <idl.json> <instructionName> <accounts.json> <ixArgs.json>\n\n" +
                 "Notes:\n" +
-                "- nonce 配置是可选；如果传了 nonce，会优先使用 nonce.nonceValue 作为 recent_blockhash。\n" +
+                "- 运行时参数（fromAddress、gasLimit、gasPrice、recentBlockhash）目前用 Main 内局部变量 mock。\n" +
+                "- 当前不从配置文件读取 gas/from，配置输入只保留 IDL 与调用参数。\n" +
                 "- 该工具只构建 legacy 交易，不签名。\n";
         System.out.println(usage);
     }
