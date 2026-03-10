@@ -1,7 +1,7 @@
 package org.example;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import org.example.project.SolIdlProject;
 import org.example.project.dto.BuildTxReq;
 import org.example.project.dto.SolIdlTxBuildExt;
@@ -17,7 +17,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LegacyTransactionBuilderTest {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final Path ROOT_TESTDATA_DIR = Path.of("testdata");
     private static final Path SET_SAFE_TESTDATA_DIR = ROOT_TESTDATA_DIR.resolve("set-safe");
 
@@ -44,7 +43,7 @@ class LegacyTransactionBuilderTest {
     }
 
     private List<Object> readParamList(String filename) throws Exception {
-        JsonNode node = MAPPER.readTree(Files.readString(SET_SAFE_TESTDATA_DIR.resolve(filename)));
-        return MAPPER.convertValue(node, List.class);
+        JSONArray jsonArray = JSON.parseArray(Files.readString(SET_SAFE_TESTDATA_DIR.resolve(filename)));
+        return jsonArray.toJavaList(Object.class);
     }
 }

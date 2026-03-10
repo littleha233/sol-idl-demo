@@ -1,7 +1,8 @@
 package org.example.project.config;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,12 +11,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class SolContractRegistry {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final Path configPath;
-    private final JsonNode root;
+    private final JSONObject root;
 
-    private SolContractRegistry(Path configPath, JsonNode root) {
+    private SolContractRegistry(Path configPath, JSONObject root) {
         this.configPath = configPath;
         this.root = root;
     }
@@ -27,7 +27,7 @@ public class SolContractRegistry {
         if (!Files.exists(configPath)) {
             throw new IllegalArgumentException("contracts config file not found: " + configPath);
         }
-        JsonNode root = MAPPER.readTree(Files.readString(configPath));
+        JSONObject root = JSON.parseObject(Files.readString(configPath));
         return new SolContractRegistry(configPath.toAbsolutePath().normalize(), root);
     }
 
@@ -39,41 +39,43 @@ public class SolContractRegistry {
             throw new IllegalArgumentException("operationCode is required");
         }
 
-        JsonNode contracts = root.path("contracts");
-        if (!contracts.isArray()) {
+        JSONArray contracts = root.getJSONArray("contracts");
+        if (contracts == null) {
             throw new IllegalArgumentException("contracts config missing 'contracts' array");
         }
 
-        for (JsonNode contractNode : contracts) {
-            if (!"SOL".equalsIgnoreCase(contractNode.path("chainName").asText())) {
+        for (int i = 0; i < contracts.size(); i++) {
+            JSONObject contractNode = contracts.getJSONObject(i);
+            if (!"SOL".equalsIgnoreCase(contractNode.getString("chainName"))) {
                 continue;
             }
-            String configuredAddress = contractNode.path("contractAddress").asText();
+            String configuredAddress = contractNode.getString("contractAddress");
             if (!contractAddress.equals(configuredAddress)) {
                 continue;
             }
 
-            JsonNode operationList = contractNode.path("operationList");
-            if (!operationList.isArray()) {
+            JSONArray operationList = contractNode.getJSONArray("operationList");
+            if (operationList == null) {
                 continue;
             }
 
-            for (JsonNode operationNode : operationList) {
-                if (!operationCode.equals(operationNode.path("operationKey").asText())) {
+            for (int j = 0; j < operationList.size(); j++) {
+                JSONObject operationNode = operationList.getJSONObject(j);
+                if (!operationCode.equals(operationNode.getString("operationKey"))) {
                     continue;
                 }
-                JsonNode solIdl = operationNode.path("solIdl");
-                if (!solIdl.isObject()) {
+                JSONObject solIdl = operationNode.getJSONObject("solIdl");
+                if (solIdl == null) {
                     throw new IllegalArgumentException("solIdl block is required for SOL operation: " + operationCode);
                 }
 
-                String idlPathRaw = requiredText(solIdl.path("idlPath"), "solIdl.idlPath");
-                String instructionName = requiredText(solIdl.path("instructionName"), "solIdl.instructionName");
-                Map<String, String> accountTemplate = readAccounts(solIdl.path("accounts"));
+                String idlPathRaw = requiredText(solIdl.get("idlPath"), "solIdl.idlPath");
+                String instructionName = requiredText(solIdl.get("instructionName"), "solIdl.instructionName");
+                Map<String, String> accountTemplate = readAccounts(solIdl.getJSONObject("accounts"));
                 Path idlPath = resolveIdlPath(idlPathRaw);
 
                 return new ResolvedSolOperation(
-                        contractNode.path("contractKey").asText(),
+                        contractNode.getString("contractKey"),
                         configuredAddress,
                         operationCode,
                         instructionName,
@@ -100,20 +102,22 @@ public class SolContractRegistry {
         return parent.resolve(raw).normalize();
     }
 
-    private Map<String, String> readAccounts(JsonNode accountsNode) {
+    private Map<String, String> readAccounts(JSONObject accountsNode) {
         Map<String, String> out = new LinkedHashMap<String, String>();
-        if (!accountsNode.isObject()) {
+        if (accountsNode == null) {
             return out;
         }
-        accountsNode.fields().forEachRemaining(e -> out.put(e.getKey(), e.getValue().asText()));
+        for (String key : accountsNode.keySet()) {
+            out.put(key, accountsNode.getString(key));
+        }
         return out;
     }
 
-    private String requiredText(JsonNode node, String fieldName) {
-        if (node == null || node.isNull() || !node.isTextual() || isBlank(node.asText())) {
+    private String requiredText(Object node, String fieldName) {
+        if (!(node instanceof String) || isBlank((String) node)) {
             throw new IllegalArgumentException(fieldName + " must be non-empty string");
         }
-        return node.asText();
+        return (String) node;
     }
 
     private static boolean isBlank(String s) {

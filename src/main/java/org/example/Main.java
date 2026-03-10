@@ -1,8 +1,8 @@
 package org.example;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import org.example.project.SolIdlProject;
 import org.example.project.config.SolContractRegistry;
 import org.example.project.dto.BuildTxReq;
@@ -15,7 +15,6 @@ import java.nio.file.Path;
 import java.util.List;
 
 public class Main {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public static void main(String[] args) throws Exception {
         if (args.length < 5) {
@@ -36,28 +35,25 @@ public class Main {
 
         LegacyTransactionSerializer.BuildResult result = project.buildTx(req);
         SolContractRegistry.ResolvedSolOperation operation = project.resolveOperation(contractAddress, operationCode);
-        JsonNode idl = readJson(operation.getIdlPath());
+        JSONObject idl = readJsonObject(operation.getIdlPath());
 
-        ObjectNode output = MAPPER.createObjectNode();
+        JSONObject output = new JSONObject(true);
         output.put("operationCode", operationCode);
         output.put("instruction", operation.getInstructionName());
-        output.put("programId", idl.path("address").asText());
+        output.put("programId", idl.getString("address"));
         output.put("messageBase64", result.getMessageBase64());
         output.put("messageBase58", Base58.encode(result.getMessageBytes()));
         output.put("unsignedLegacyTransactionBase64", result.getUnsignedTransactionBase64());
         output.put("requiredSignerCount", result.getRequiredSigners().size());
-        output.set("requiredSigners", MAPPER.valueToTree(result.getRequiredSigners()));
-        output.set("accountKeys", MAPPER.valueToTree(result.getAccountKeys()));
+        output.put("requiredSigners", result.getRequiredSigners());
+        output.put("accountKeys", result.getAccountKeys());
 
-        System.out.println(MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(output));
+        System.out.println(JSON.toJSONString(output, true));
     }
 
     private static SolIdlTxBuildExt buildExt(String contractAddress, String operationCode, Path paramListPath) throws Exception {
-        JsonNode paramListNode = readJson(paramListPath);
-        if (!paramListNode.isArray()) {
-            throw new IllegalArgumentException("paramList json must be an array");
-        }
-        List<Object> paramList = MAPPER.convertValue(paramListNode, List.class);
+        JSONArray paramListJson = readJsonArray(paramListPath);
+        List<Object> paramList = paramListJson.toJavaList(Object.class);
 
         SolIdlTxBuildExt ext = new SolIdlTxBuildExt();
         ext.setTo(contractAddress);
@@ -66,11 +62,18 @@ public class Main {
         return ext;
     }
 
-    private static JsonNode readJson(Path path) throws Exception {
+    private static JSONObject readJsonObject(Path path) throws Exception {
         if (!Files.exists(path)) {
             throw new IllegalArgumentException("File not found: " + path);
         }
-        return MAPPER.readTree(Files.readString(path));
+        return JSON.parseObject(Files.readString(path));
+    }
+
+    private static JSONArray readJsonArray(Path path) throws Exception {
+        if (!Files.exists(path)) {
+            throw new IllegalArgumentException("File not found: " + path);
+        }
+        return JSON.parseArray(Files.readString(path));
     }
 
     private static void printUsage() {

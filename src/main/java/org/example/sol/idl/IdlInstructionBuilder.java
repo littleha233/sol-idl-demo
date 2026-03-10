@@ -1,8 +1,8 @@
 package org.example.sol.idl;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.NullNode;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 import org.example.sol.BorshEncoder;
 import org.example.sol.sdk.AccountMeta;
 import org.example.sol.sdk.Instruction;
@@ -16,7 +16,6 @@ import java.util.List;
 import java.util.Map;
 
 public class IdlInstructionBuilder {
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     public Instruction buildInstruction(
             Path idlPath,
@@ -24,12 +23,12 @@ public class IdlInstructionBuilder {
             Map<String, String> accounts,
             List<Object> paramList
     ) throws Exception {
-        JsonNode idlRoot = MAPPER.readTree(Files.readString(idlPath));
-        JsonNode instructionNode = findInstruction(idlRoot, instructionName);
+        JSONObject idlRoot = JSON.parseObject(Files.readString(idlPath));
+        JSONObject instructionNode = findInstruction(idlRoot, instructionName);
         String programId = requireText(idlRoot.get("address"), "IDL program address");
 
         List<AccountSpec> specs = new ArrayList<AccountSpec>();
-        collectAccountSpecs(instructionNode.get("accounts"), "", specs);
+        collectAccountSpecs(instructionNode.getJSONArray("accounts"), "", specs);
 
         List<AccountMeta> metas = new ArrayList<AccountMeta>();
         for (AccountSpec spec : specs) {
@@ -47,26 +46,27 @@ public class IdlInstructionBuilder {
         return new Instruction(programId, metas, data);
     }
 
-    private JsonNode findInstruction(JsonNode idlRoot, String instructionName) {
-        JsonNode instructions = idlRoot.get("instructions");
-        if (instructions == null || !instructions.isArray()) {
+    private JSONObject findInstruction(JSONObject idlRoot, String instructionName) {
+        JSONArray instructions = idlRoot.getJSONArray("instructions");
+        if (instructions == null || instructions.isEmpty()) {
             throw new IllegalArgumentException("IDL instructions is missing");
         }
-        for (JsonNode ix : instructions) {
-            if (instructionName.equals(ix.path("name").asText())) {
+        for (int i = 0; i < instructions.size(); i++) {
+            JSONObject ix = instructions.getJSONObject(i);
+            if (instructionName.equals(ix.getString("name"))) {
                 return ix;
             }
         }
         throw new IllegalArgumentException("Instruction not found in IDL: " + instructionName);
     }
 
-    private byte[] encodeInstructionData(JsonNode instructionNode, List<Object> paramList) {
+    private byte[] encodeInstructionData(JSONObject instructionNode, List<Object> paramList) {
         List<Object> params = paramList == null ? Collections.<Object>emptyList() : paramList;
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         out.writeBytes(BorshEncoder.discriminatorFromIdlOrAnchor(instructionNode));
 
-        JsonNode argsDef = instructionNode.get("args");
-        if (argsDef == null || !argsDef.isArray()) {
+        JSONArray argsDef = instructionNode.getJSONArray("args");
+        if (argsDef == null || argsDef.isEmpty()) {
             if (!params.isEmpty()) {
                 throw new IllegalArgumentException("paramList must be empty when instruction args are empty");
             }
@@ -78,42 +78,43 @@ public class IdlInstructionBuilder {
             );
         }
         for (int i = 0; i < argsDef.size(); i++) {
-            JsonNode argDef = argsDef.get(i);
-            JsonNode type = argDef.get("type");
+            JSONObject argDef = argsDef.getJSONObject(i);
+            Object type = argDef.get("type");
             Object value = params.get(i);
-            JsonNode valueNode = value == null ? NullNode.getInstance() : MAPPER.valueToTree(value);
-            out.writeBytes(BorshEncoder.encodeType(type, valueNode));
+            out.writeBytes(BorshEncoder.encodeType(type, value));
         }
         return out.toByteArray();
     }
 
-    private void collectAccountSpecs(JsonNode accountsNode, String prefix, List<AccountSpec> out) {
-        if (accountsNode == null || !accountsNode.isArray()) {
+    private void collectAccountSpecs(JSONArray accountsNode, String prefix, List<AccountSpec> out) {
+        if (accountsNode == null || accountsNode.isEmpty()) {
             return;
         }
-        for (JsonNode accountNode : accountsNode) {
-            JsonNode nested = accountNode.get("accounts");
+        for (int i = 0; i < accountsNode.size(); i++) {
+            JSONObject accountNode = accountsNode.getJSONObject(i);
+            JSONArray nested = accountNode.getJSONArray("accounts");
             String name = requireText(accountNode.get("name"), "account.name");
-            if (nested != null && nested.isArray()) {
+            if (nested != null && !nested.isEmpty()) {
                 collectAccountSpecs(nested, prefix + name + ".", out);
                 continue;
             }
-            boolean writable = accountNode.has("writable")
-                    ? accountNode.get("writable").asBoolean()
-                    : accountNode.path("isMut").asBoolean(false);
-            boolean signer = accountNode.has("signer")
-                    ? accountNode.get("signer").asBoolean()
-                    : accountNode.path("isSigner").asBoolean(false);
-            String address = accountNode.has("address") ? accountNode.get("address").asText() : null;
+
+            boolean writable = accountNode.containsKey("writable")
+                    ? accountNode.getBooleanValue("writable")
+                    : accountNode.getBooleanValue("isMut");
+            boolean signer = accountNode.containsKey("signer")
+                    ? accountNode.getBooleanValue("signer")
+                    : accountNode.getBooleanValue("isSigner");
+            String address = accountNode.getString("address");
             out.add(new AccountSpec(prefix + name, signer, writable, address));
         }
     }
 
-    private String requireText(JsonNode node, String fieldName) {
-        if (node == null || node.isNull() || !node.isTextual()) {
+    private String requireText(Object node, String fieldName) {
+        if (!(node instanceof String) || ((String) node).trim().isEmpty()) {
             throw new IllegalArgumentException(fieldName + " must be string");
         }
-        return node.asText();
+        return (String) node;
     }
 
     private static class AccountSpec {

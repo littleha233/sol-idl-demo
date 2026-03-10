@@ -1,43 +1,46 @@
 package org.example.sol;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 public final class BorshEncoder {
     private BorshEncoder() {}
 
-    public static byte[] encodeType(JsonNode typeNode, JsonNode valueNode) {
+    public static byte[] encodeType(Object typeNode, Object valueNode) {
         if (typeNode == null) {
             throw new IllegalArgumentException("IDL arg type is missing");
         }
-        if (typeNode.isTextual()) {
-            return encodePrimitive(typeNode.asText(), valueNode);
+        if (typeNode instanceof String) {
+            return encodePrimitive((String) typeNode, valueNode);
         }
-        if (typeNode.isObject()) {
-            if (typeNode.has("option")) {
-                return encodeOption(typeNode.get("option"), valueNode);
+        if (typeNode instanceof JSONObject) {
+            JSONObject objectType = (JSONObject) typeNode;
+            if (objectType.containsKey("option")) {
+                return encodeOption(objectType.get("option"), valueNode);
             }
-            if (typeNode.has("vec")) {
-                return encodeVec(typeNode.get("vec"), valueNode);
+            if (objectType.containsKey("vec")) {
+                return encodeVec(objectType.get("vec"), valueNode);
             }
-            if (typeNode.has("array")) {
-                return encodeArray(typeNode.get("array"), valueNode);
+            if (objectType.containsKey("array")) {
+                return encodeArray(objectType.get("array"), valueNode);
             }
-            if (typeNode.has("defined")) {
+            if (objectType.containsKey("defined")) {
                 throw new IllegalArgumentException("defined type is not supported in this demo");
             }
         }
         throw new IllegalArgumentException("Unsupported IDL type node: " + typeNode);
     }
 
-    private static byte[] encodeOption(JsonNode innerType, JsonNode valueNode) {
+    private static byte[] encodeOption(Object innerType, Object valueNode) {
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        if (valueNode == null || valueNode.isNull()) {
+        if (valueNode == null) {
             out.write(0);
             return out.toByteArray();
         }
@@ -46,35 +49,40 @@ public final class BorshEncoder {
         return out.toByteArray();
     }
 
-    private static byte[] encodeVec(JsonNode innerType, JsonNode valueNode) {
-        if (valueNode == null || !valueNode.isArray()) {
-            throw new IllegalArgumentException("vec expects a JSON array");
-        }
+    private static byte[] encodeVec(Object innerType, Object valueNode) {
+        List<Object> list = asList(valueNode, "vec");
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        writeAll(out, leU32(valueNode.size()));
-        for (JsonNode item : valueNode) {
+        writeAll(out, leU32(list.size()));
+        for (Object item : list) {
             writeAll(out, encodeType(innerType, item));
         }
         return out.toByteArray();
     }
 
-    private static byte[] encodeArray(JsonNode arrayDef, JsonNode valueNode) {
-        if (!arrayDef.isArray() || arrayDef.size() != 2) {
+    private static byte[] encodeArray(Object arrayDef, Object valueNode) {
+        if (!(arrayDef instanceof JSONArray)) {
             throw new IllegalArgumentException("array type must be [innerType, length]");
         }
-        JsonNode innerType = arrayDef.get(0);
-        int length = arrayDef.get(1).asInt();
-        if (valueNode == null || !valueNode.isArray() || valueNode.size() != length) {
-            throw new IllegalArgumentException("array expects JSON array with fixed length " + length);
+        JSONArray def = (JSONArray) arrayDef;
+        if (def.size() != 2) {
+            throw new IllegalArgumentException("array type must be [innerType, length]");
         }
+        Object innerType = def.get(0);
+        int length = asInt(def.get(1), "array length");
+
+        List<Object> values = asList(valueNode, "array");
+        if (values.size() != length) {
+            throw new IllegalArgumentException("array expects fixed length " + length);
+        }
+
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        for (JsonNode item : valueNode) {
+        for (Object item : values) {
             writeAll(out, encodeType(innerType, item));
         }
         return out.toByteArray();
     }
 
-    private static byte[] encodePrimitive(String type, JsonNode valueNode) {
+    private static byte[] encodePrimitive(String type, Object valueNode) {
         switch (type) {
             case "bool":
                 return new byte[]{(byte) (asBoolean(valueNode) ? 1 : 0)};
@@ -118,14 +126,12 @@ public final class BorshEncoder {
         return out.toByteArray();
     }
 
-    private static byte[] encodeBytesValue(JsonNode valueNode) {
-        if (valueNode == null || !valueNode.isArray()) {
-            throw new IllegalArgumentException("bytes expects an array of numbers");
-        }
+    private static byte[] encodeBytesValue(Object valueNode) {
+        List<Object> list = asList(valueNode, "bytes");
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        writeAll(out, leU32(valueNode.size()));
-        for (JsonNode n : valueNode) {
-            out.write((byte) n.asInt());
+        writeAll(out, leU32(list.size()));
+        for (Object item : list) {
+            out.write((byte) asInt(item, "bytes value"));
         }
         return out.toByteArray();
     }
@@ -138,21 +144,24 @@ public final class BorshEncoder {
         return raw;
     }
 
-    private static boolean asBoolean(JsonNode node) {
-        if (node == null || node.isNull()) {
+    private static boolean asBoolean(Object node) {
+        if (node == null) {
             throw new IllegalArgumentException("bool value is missing");
         }
-        return node.isBoolean() ? node.asBoolean() : Boolean.parseBoolean(node.asText());
+        if (node instanceof Boolean) {
+            return (Boolean) node;
+        }
+        return Boolean.parseBoolean(String.valueOf(node));
     }
 
-    private static String asString(JsonNode node) {
-        if (node == null || node.isNull()) {
+    private static String asString(Object node) {
+        if (node == null) {
             throw new IllegalArgumentException("string value is missing");
         }
-        return node.asText();
+        return String.valueOf(node);
     }
 
-    private static BigInteger asUnsigned(JsonNode node, int bits) {
+    private static BigInteger asUnsigned(Object node, int bits) {
         BigInteger n = parseBigInt(node);
         if (n.signum() < 0) {
             throw new IllegalArgumentException("unsigned integer cannot be negative: " + n);
@@ -164,7 +173,7 @@ public final class BorshEncoder {
         return n;
     }
 
-    private static BigInteger asSigned(JsonNode node, int bits) {
+    private static BigInteger asSigned(Object node, int bits) {
         BigInteger n = parseBigInt(node);
         BigInteger min = BigInteger.ONE.shiftLeft(bits - 1).negate();
         BigInteger max = BigInteger.ONE.shiftLeft(bits - 1).subtract(BigInteger.ONE);
@@ -174,14 +183,45 @@ public final class BorshEncoder {
         return n;
     }
 
-    private static BigInteger parseBigInt(JsonNode node) {
-        if (node == null || node.isNull()) {
+    private static BigInteger parseBigInt(Object node) {
+        if (node == null) {
             throw new IllegalArgumentException("numeric value is missing");
         }
-        if (node.isIntegralNumber()) {
-            return node.bigIntegerValue();
+        if (node instanceof BigInteger) {
+            return (BigInteger) node;
         }
-        return new BigInteger(node.asText());
+        if (node instanceof Number) {
+            Number n = (Number) node;
+            if (n instanceof Byte || n instanceof Short || n instanceof Integer || n instanceof Long) {
+                return BigInteger.valueOf(n.longValue());
+            }
+            return new BigInteger(String.valueOf(n));
+        }
+        return new BigInteger(String.valueOf(node));
+    }
+
+    private static int asInt(Object node, String field) {
+        if (node == null) {
+            throw new IllegalArgumentException(field + " is missing");
+        }
+        if (node instanceof Number) {
+            return ((Number) node).intValue();
+        }
+        return Integer.parseInt(String.valueOf(node));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Object> asList(Object node, String field) {
+        if (node == null) {
+            throw new IllegalArgumentException(field + " expects an array");
+        }
+        if (node instanceof JSONArray) {
+            return (JSONArray) node;
+        }
+        if (node instanceof List) {
+            return (List<Object>) node;
+        }
+        throw new IllegalArgumentException(field + " expects an array");
     }
 
     private static byte[] leU32(int n) {
@@ -210,16 +250,16 @@ public final class BorshEncoder {
         out.writeBytes(bytes);
     }
 
-    public static byte[] discriminatorFromIdlOrAnchor(JsonNode instructionNode) {
-        JsonNode discrNode = instructionNode.get("discriminator");
-        if (discrNode != null && discrNode.isArray() && discrNode.size() > 0) {
+    public static byte[] discriminatorFromIdlOrAnchor(JSONObject instructionNode) {
+        JSONArray discrNode = instructionNode.getJSONArray("discriminator");
+        if (discrNode != null && !discrNode.isEmpty()) {
             byte[] out = new byte[discrNode.size()];
             for (int i = 0; i < discrNode.size(); i++) {
-                out[i] = (byte) discrNode.get(i).asInt();
+                out[i] = (byte) discrNode.getIntValue(i);
             }
             return out;
         }
-        String name = instructionNode.get("name").asText();
+        String name = instructionNode.getString("name");
         return AnchorDiscriminator.global(name);
     }
 
