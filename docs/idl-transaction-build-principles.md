@@ -2,7 +2,10 @@
 
 本文描述本项目中“根据 IDL 与参数构建未签名 Solana legacy 交易”的核心机制。对应实现见：
 
-- `src/main/java/org/example/sol/LegacyTransactionBuilder.java`
+- `src/main/java/org/example/project/SolIdlProject.java`
+- `src/main/java/org/example/sol/LegacyTransactionSerializer.java`
+- `src/main/java/org/example/sol/idl/IdlInstructionBuilder.java`
+- `src/main/java/org/example/sol/sdk/Message.java`
 - `src/main/java/org/example/sol/BorshEncoder.java`
 - `src/main/java/org/example/sol/ShortVec.java`
 - `src/main/java/org/example/sol/Base58.java`
@@ -52,7 +55,7 @@ IDL（Anchor IDL）提供：
 4. 写入 header（`numRequiredSignatures` 等）
 5. 写入账户数组、recent blockhash、compiled instructions（shortvec 长度编码）
 
-`LegacyTransactionBuilder` + `ShortVec` 完成上述序列化。
+`LegacyTransactionSerializer` + `ShortVec` 完成上述序列化。
 
 ## 2. 构建流程（项目实际流程）
 

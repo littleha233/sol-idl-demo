@@ -2,6 +2,12 @@
 
 输入 `IDL + instruction 参数 + account 参数`，构建一笔 **未签名 legacy Solana 交易**。
 
+当前采用 `SolProject` 风格：
+
+- `from` 作为方法参数传递
+- `Message` 先构造，再逐步 `addInstruction`
+- nonce/gas 在项目类内部做局部 mock（后续可替换为真实配置或 RPC）
+
 ## Build
 
 ```bash
