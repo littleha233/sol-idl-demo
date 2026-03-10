@@ -64,6 +64,54 @@
           "type": "pubkey"
         }
       ]
+    },
+    {
+      "name": "set_operator",
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  97,
+                  102,
+                  101,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "operator",
+          "type": "pubkey"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -93,6 +141,10 @@
           },
           {
             "name": "safe",
+            "type": "pubkey"
+          },
+          {
+            "name": "operator",
             "type": "pubkey"
           },
           {

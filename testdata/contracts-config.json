@@ -131,19 +131,17 @@
       "coinId": 446,
       "chainCoinId": 3000,
       "chainName": "SOL",
+      "idlPath": "set-safe/idl.json",
       "operationList": [
         {
           "operationId": "1",
           "operationKey": "set_safe",
-          "displayName": "SetSafe",
-          "solIdl": {
-            "idlPath": "set-safe/idl.json",
-            "instructionName": "set_safe",
-            "accounts": {
-              "authority": "${from}",
-              "config": "G413572PbWwbmEHkZ7WJePXLmaHp8AFnTUn9Hw4iUnLx"
-            }
-          }
+          "displayName": "SetSafe"
+        },
+        {
+          "operationId": "2",
+          "operationKey": "set_operator",
+          "displayName": "SetOperator"
         }
       ]
     }

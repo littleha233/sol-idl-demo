@@ -65,13 +65,23 @@ public class SolContractRegistry {
                     continue;
                 }
                 JSONObject solIdl = operationNode.getJSONObject("solIdl");
-                if (solIdl == null) {
-                    throw new IllegalArgumentException("solIdl block is required for SOL operation: " + operationCode);
-                }
+                String idlPathRaw;
+                String instructionName;
+                Map<String, String> accountTemplate;
 
-                String idlPathRaw = requiredText(solIdl.get("idlPath"), "solIdl.idlPath");
-                String instructionName = requiredText(solIdl.get("instructionName"), "solIdl.instructionName");
-                Map<String, String> accountTemplate = readAccounts(solIdl.getJSONObject("accounts"));
+                if (solIdl != null) {
+                    // New mode: operation carries explicit idl metadata.
+                    idlPathRaw = requiredText(solIdl.get("idlPath"), "solIdl.idlPath");
+                    instructionName = requiredText(solIdl.get("instructionName"), "solIdl.instructionName");
+                    accountTemplate = readAccounts(solIdl.getJSONObject("accounts"));
+                } else {
+                    // Compact mode: operationKey -> instructionName, idlPath at contract level.
+                    idlPathRaw = requiredText(contractNode.get("idlPath"), "idlPath");
+                    instructionName = requiredText(operationNode.get("operationKey"), "operationKey");
+                    JSONObject operationAccounts = operationNode.getJSONObject("accounts");
+                    JSONObject contractAccounts = contractNode.getJSONObject("accounts");
+                    accountTemplate = readAccounts(operationAccounts != null ? operationAccounts : contractAccounts);
+                }
                 Path idlPath = resolveIdlPath(idlPathRaw);
 
                 return new ResolvedSolOperation(

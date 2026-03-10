@@ -18,6 +18,7 @@ import java.util.regex.Pattern;
 
 public class SolIdlProject {
     private static final Pattern PLACEHOLDER_PATTERN = Pattern.compile("\\$\\{([a-zA-Z0-9_.-]+)}");
+    private static final String MOCK_CONFIG_ACCOUNT = "G413572PbWwbmEHkZ7WJePXLmaHp8AFnTUn9Hw4iUnLx";
 
     private final IdlInstructionBuilder idlInstructionBuilder = new IdlInstructionBuilder();
     private final LegacyTransactionSerializer serializer = new LegacyTransactionSerializer();
@@ -110,6 +111,10 @@ public class SolIdlProject {
         variables.put("contractAddress", contractAddress);
 
         Map<String, String> out = new LinkedHashMap<String, String>();
+        // Mock runtime account context.
+        out.put("authority", from);
+        out.put("config", MOCK_CONFIG_ACCOUNT);
+
         for (Map.Entry<String, String> e : templates.entrySet()) {
             out.put(e.getKey(), renderTemplate(e.getValue(), variables));
         }
