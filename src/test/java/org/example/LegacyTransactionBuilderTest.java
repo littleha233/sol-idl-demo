@@ -36,7 +36,7 @@ class LegacyTransactionBuilderTest {
         assertFalse(result.messageBase64().isBlank());
         assertFalse(result.unsignedTransactionBase64().isBlank());
         assertEquals(1, result.requiredSigners().size());
-        assertEquals("8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H", result.requiredSigners().getFirst());
+        assertEquals("8P9Dpf29HDDWwNxvAhB4XqHsVQmobGCwERXWJmbL7U2H", result.requiredSigners().get(0));
         assertTrue(result.accountKeys().contains("Hj1rx5gpvzbLvWXz1vxLUkcqnoKrKSfgBVMfpmJ97Hmz"));
         assertTrue(result.accountKeys().contains("G413572PbWwbmEHkZ7WJePXLmaHp8AFnTUn9Hw4iUnLx"));
     }

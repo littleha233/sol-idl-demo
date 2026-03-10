@@ -75,23 +75,39 @@ public final class BorshEncoder {
     }
 
     private static byte[] encodePrimitive(String type, JsonNode valueNode) {
-        return switch (type) {
-            case "bool" -> new byte[]{(byte) (asBoolean(valueNode) ? 1 : 0)};
-            case "u8" -> new byte[]{(byte) asUnsigned(valueNode, 8).intValueExact()};
-            case "i8" -> new byte[]{(byte) asSigned(valueNode, 8).intValueExact()};
-            case "u16" -> le(asUnsigned(valueNode, 16), 2);
-            case "i16" -> leSigned(asSigned(valueNode, 16), 2);
-            case "u32" -> le(asUnsigned(valueNode, 32), 4);
-            case "i32" -> leSigned(asSigned(valueNode, 32), 4);
-            case "u64" -> le(asUnsigned(valueNode, 64), 8);
-            case "i64" -> leSigned(asSigned(valueNode, 64), 8);
-            case "u128" -> le(asUnsigned(valueNode, 128), 16);
-            case "i128" -> leSigned(asSigned(valueNode, 128), 16);
-            case "string" -> encodeString(asString(valueNode));
-            case "pubkey", "publicKey" -> encodePubkey(asString(valueNode));
-            case "bytes" -> encodeBytesValue(valueNode);
-            default -> throw new IllegalArgumentException("Unsupported primitive type: " + type);
-        };
+        switch (type) {
+            case "bool":
+                return new byte[]{(byte) (asBoolean(valueNode) ? 1 : 0)};
+            case "u8":
+                return new byte[]{(byte) asUnsigned(valueNode, 8).intValueExact()};
+            case "i8":
+                return new byte[]{(byte) asSigned(valueNode, 8).intValueExact()};
+            case "u16":
+                return le(asUnsigned(valueNode, 16), 2);
+            case "i16":
+                return leSigned(asSigned(valueNode, 16), 2);
+            case "u32":
+                return le(asUnsigned(valueNode, 32), 4);
+            case "i32":
+                return leSigned(asSigned(valueNode, 32), 4);
+            case "u64":
+                return le(asUnsigned(valueNode, 64), 8);
+            case "i64":
+                return leSigned(asSigned(valueNode, 64), 8);
+            case "u128":
+                return le(asUnsigned(valueNode, 128), 16);
+            case "i128":
+                return leSigned(asSigned(valueNode, 128), 16);
+            case "string":
+                return encodeString(asString(valueNode));
+            case "pubkey":
+            case "publicKey":
+                return encodePubkey(asString(valueNode));
+            case "bytes":
+                return encodeBytesValue(valueNode);
+            default:
+                throw new IllegalArgumentException("Unsupported primitive type: " + type);
+        }
     }
 
     private static byte[] encodeString(String value) {

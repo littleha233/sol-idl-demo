@@ -347,13 +347,47 @@ public class LegacyTransactionBuilder {
         return node.asText();
     }
 
-    public record BuildConfig(
-            String feePayer,
-            String recentBlockhash,
-            Integer computeUnitLimit,
-            Long computeUnitPriceMicroLamports,
-            NonceConfig nonceConfig
-    ) {
+    public static final class BuildConfig {
+        private final String feePayer;
+        private final String recentBlockhash;
+        private final Integer computeUnitLimit;
+        private final Long computeUnitPriceMicroLamports;
+        private final NonceConfig nonceConfig;
+
+        public BuildConfig(
+                String feePayer,
+                String recentBlockhash,
+                Integer computeUnitLimit,
+                Long computeUnitPriceMicroLamports,
+                NonceConfig nonceConfig
+        ) {
+            this.feePayer = feePayer;
+            this.recentBlockhash = recentBlockhash;
+            this.computeUnitLimit = computeUnitLimit;
+            this.computeUnitPriceMicroLamports = computeUnitPriceMicroLamports;
+            this.nonceConfig = nonceConfig;
+        }
+
+        public String feePayer() {
+            return feePayer;
+        }
+
+        public String recentBlockhash() {
+            return recentBlockhash;
+        }
+
+        public Integer computeUnitLimit() {
+            return computeUnitLimit;
+        }
+
+        public Long computeUnitPriceMicroLamports() {
+            return computeUnitPriceMicroLamports;
+        }
+
+        public NonceConfig nonceConfig() {
+            return nonceConfig;
+        }
+
         public static BuildConfig fromJson(JsonNode configNode) {
             if (configNode == null || configNode.isNull()) {
                 throw new IllegalArgumentException("config JSON is missing");
@@ -393,26 +427,204 @@ public class LegacyTransactionBuilder {
         }
     }
 
-    public record NonceConfig(String nonceAccount, String nonceAuthority, String nonceValue) {}
+    public static final class NonceConfig {
+        private final String nonceAccount;
+        private final String nonceAuthority;
+        private final String nonceValue;
 
-    public record BuildResult(
-            byte[] messageBytes,
-            byte[] unsignedTransactionBytes,
-            String messageBase64,
-            String unsignedTransactionBase64,
-            List<String> requiredSigners,
-            List<String> accountKeys
-    ) {}
+        public NonceConfig(String nonceAccount, String nonceAuthority, String nonceValue) {
+            this.nonceAccount = nonceAccount;
+            this.nonceAuthority = nonceAuthority;
+            this.nonceValue = nonceValue;
+        }
 
-    private record AccountSpec(String lookupKey, boolean signer, boolean writable, String address) {}
+        public String nonceAccount() {
+            return nonceAccount;
+        }
 
-    private record AccountMeta(String pubkey, boolean signer, boolean writable) {}
+        public String nonceAuthority() {
+            return nonceAuthority;
+        }
 
-    private record Instruction(String programId, List<AccountMeta> accounts, byte[] data) {}
+        public String nonceValue() {
+            return nonceValue;
+        }
+    }
 
-    private record CompiledInstruction(int programIdIndex, List<Integer> accountIndexes, byte[] data) {}
+    public static final class BuildResult {
+        private final byte[] messageBytes;
+        private final byte[] unsignedTransactionBytes;
+        private final String messageBase64;
+        private final String unsignedTransactionBase64;
+        private final List<String> requiredSigners;
+        private final List<String> accountKeys;
 
-    private record CompiledMessage(byte[] messageBytes, List<String> accountKeys, List<String> requiredSigners) {}
+        public BuildResult(
+                byte[] messageBytes,
+                byte[] unsignedTransactionBytes,
+                String messageBase64,
+                String unsignedTransactionBase64,
+                List<String> requiredSigners,
+                List<String> accountKeys
+        ) {
+            this.messageBytes = messageBytes;
+            this.unsignedTransactionBytes = unsignedTransactionBytes;
+            this.messageBase64 = messageBase64;
+            this.unsignedTransactionBase64 = unsignedTransactionBase64;
+            this.requiredSigners = requiredSigners;
+            this.accountKeys = accountKeys;
+        }
+
+        public byte[] messageBytes() {
+            return messageBytes;
+        }
+
+        public byte[] unsignedTransactionBytes() {
+            return unsignedTransactionBytes;
+        }
+
+        public String messageBase64() {
+            return messageBase64;
+        }
+
+        public String unsignedTransactionBase64() {
+            return unsignedTransactionBase64;
+        }
+
+        public List<String> requiredSigners() {
+            return requiredSigners;
+        }
+
+        public List<String> accountKeys() {
+            return accountKeys;
+        }
+    }
+
+    private static final class AccountSpec {
+        private final String lookupKey;
+        private final boolean signer;
+        private final boolean writable;
+        private final String address;
+
+        private AccountSpec(String lookupKey, boolean signer, boolean writable, String address) {
+            this.lookupKey = lookupKey;
+            this.signer = signer;
+            this.writable = writable;
+            this.address = address;
+        }
+
+        private String lookupKey() {
+            return lookupKey;
+        }
+
+        private boolean signer() {
+            return signer;
+        }
+
+        private boolean writable() {
+            return writable;
+        }
+
+        private String address() {
+            return address;
+        }
+    }
+
+    private static final class AccountMeta {
+        private final String pubkey;
+        private final boolean signer;
+        private final boolean writable;
+
+        private AccountMeta(String pubkey, boolean signer, boolean writable) {
+            this.pubkey = pubkey;
+            this.signer = signer;
+            this.writable = writable;
+        }
+
+        private String pubkey() {
+            return pubkey;
+        }
+
+        private boolean signer() {
+            return signer;
+        }
+
+        private boolean writable() {
+            return writable;
+        }
+    }
+
+    private static final class Instruction {
+        private final String programId;
+        private final List<AccountMeta> accounts;
+        private final byte[] data;
+
+        private Instruction(String programId, List<AccountMeta> accounts, byte[] data) {
+            this.programId = programId;
+            this.accounts = accounts;
+            this.data = data;
+        }
+
+        private String programId() {
+            return programId;
+        }
+
+        private List<AccountMeta> accounts() {
+            return accounts;
+        }
+
+        private byte[] data() {
+            return data;
+        }
+    }
+
+    private static final class CompiledInstruction {
+        private final int programIdIndex;
+        private final List<Integer> accountIndexes;
+        private final byte[] data;
+
+        private CompiledInstruction(int programIdIndex, List<Integer> accountIndexes, byte[] data) {
+            this.programIdIndex = programIdIndex;
+            this.accountIndexes = accountIndexes;
+            this.data = data;
+        }
+
+        private int programIdIndex() {
+            return programIdIndex;
+        }
+
+        private List<Integer> accountIndexes() {
+            return accountIndexes;
+        }
+
+        private byte[] data() {
+            return data;
+        }
+    }
+
+    private static final class CompiledMessage {
+        private final byte[] messageBytes;
+        private final List<String> accountKeys;
+        private final List<String> requiredSigners;
+
+        private CompiledMessage(byte[] messageBytes, List<String> accountKeys, List<String> requiredSigners) {
+            this.messageBytes = messageBytes;
+            this.accountKeys = accountKeys;
+            this.requiredSigners = requiredSigners;
+        }
+
+        private byte[] messageBytes() {
+            return messageBytes;
+        }
+
+        private List<String> accountKeys() {
+            return accountKeys;
+        }
+
+        private List<String> requiredSigners() {
+            return requiredSigners;
+        }
+    }
 
     private static final class MetaFlags {
         private boolean signer;

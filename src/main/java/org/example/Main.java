@@ -55,27 +55,25 @@ public class Main {
     }
 
     private static void printUsage() {
-        System.out.println("""
-                Usage:
-                  java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \\
-                    <idl.json> <instructionName> <accounts.json> <ixArgs.json> <buildConfig.json>
-
-                buildConfig.json example:
-                {
-                  "feePayer": "YourFeePayerPubkey",
-                  "recentBlockhash": "RecentBlockhashBase58",
-                  "computeUnitLimit": 250000,
-                  "computeUnitPriceMicroLamports": 1000,
-                  "nonce": {
-                    "nonceAccount": "NonceAccountPubkey",
-                    "nonceAuthority": "NonceAuthorityPubkey",
-                    "nonceValue": "DurableNonceValueBase58"
-                  }
-                }
-
-                Notes:
-                - nonce 配置是可选；如果传了 nonce，会优先使用 nonce.nonceValue 作为 recent_blockhash。
-                - 该工具只构建 legacy 交易，不签名。
-                """);
+        String usage =
+                "Usage:\n" +
+                "  java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \\\n" +
+                "    <idl.json> <instructionName> <accounts.json> <ixArgs.json> <buildConfig.json>\n\n" +
+                "buildConfig.json example:\n" +
+                "{\n" +
+                "  \"feePayer\": \"YourFeePayerPubkey\",\n" +
+                "  \"recentBlockhash\": \"RecentBlockhashBase58\",\n" +
+                "  \"computeUnitLimit\": 250000,\n" +
+                "  \"computeUnitPriceMicroLamports\": 1000,\n" +
+                "  \"nonce\": {\n" +
+                "    \"nonceAccount\": \"NonceAccountPubkey\",\n" +
+                "    \"nonceAuthority\": \"NonceAuthorityPubkey\",\n" +
+                "    \"nonceValue\": \"DurableNonceValueBase58\"\n" +
+                "  }\n" +
+                "}\n\n" +
+                "Notes:\n" +
+                "- nonce 配置是可选；如果传了 nonce，会优先使用 nonce.nonceValue 作为 recent_blockhash。\n" +
+                "- 该工具只构建 legacy 交易，不签名。\n";
+        System.out.println(usage);
     }
 }
