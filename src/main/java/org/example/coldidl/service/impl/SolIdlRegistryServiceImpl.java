@@ -9,6 +9,7 @@ import org.example.coldidl.dto.ContractInfoDto;
 import org.example.coldidl.dto.OperationDetailDto;
 import org.example.coldidl.dto.OperationInfoDto;
 import org.example.coldidl.service.SolIdlRegistryService;
+import org.springframework.stereotype.Service;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,9 +18,14 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+@Service
 public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
     private final Path configPath;
     private final JSONObject root;
+
+    public SolIdlRegistryServiceImpl() throws Exception {
+        this(Path.of("testdata/contracts-config.json"));
+    }
 
     public SolIdlRegistryServiceImpl(Path configPath) throws Exception {
         if (configPath == null) {
