@@ -6,9 +6,9 @@ import org.example.project.dto.SolIdlTxBuildExt;
 import org.example.sol.LegacyTransactionSerializer;
 import org.example.sol.idl.IdlInstructionBuilder;
 import org.example.sol.sdk.ComputeBudgetProgram;
-import org.example.sol.sdk.Instruction;
 import org.example.sol.sdk.Message;
 import org.example.sol.sdk.SystemProgram;
+import org.example.sol.sdk.TransactionInstruction;
 
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -57,7 +57,7 @@ public class SolIdlProject {
         message.addInstruction(ComputeBudgetProgram.setComputeUnitPrice(mockedComputeUnitPrice));
 
         Map<String, String> accounts = materializeAccounts(operation.getAccountTemplate(), from, ext.getTo());
-        Instruction idlInstruction = idlInstructionBuilder.buildInstruction(
+        TransactionInstruction idlInstruction = idlInstructionBuilder.buildInstruction(
                 operation.getIdlPath(),
                 operation.getInstructionName(),
                 accounts,

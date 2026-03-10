@@ -3,11 +3,11 @@ package org.example.sol.idl;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import org.example.sol.Base58;
 import org.example.sol.BorshEncoder;
 import org.example.sol.PdaUtil;
 import org.example.sol.sdk.AccountMeta;
-import org.example.sol.sdk.Instruction;
+import org.example.sol.sdk.PublicKey;
+import org.example.sol.sdk.TransactionInstruction;
 
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -21,7 +21,7 @@ import java.util.Map;
 
 public class IdlInstructionBuilder {
 
-    public Instruction buildInstruction(
+    public TransactionInstruction buildInstruction(
             Path idlPath,
             String instructionName,
             Map<String, String> accounts,
@@ -52,11 +52,11 @@ public class IdlInstructionBuilder {
 
             resolvedAccounts.put(spec.lookupKey, pubkey);
             addLeafAlias(spec.lookupKey, pubkey, resolvedAccounts);
-            metas.add(new AccountMeta(pubkey, spec.signer, spec.writable));
+            metas.add(new AccountMeta(new PublicKey(pubkey), spec.signer, spec.writable));
         }
 
         byte[] data = encodeInstructionData(instructionNode, argContext);
-        return new Instruction(programId, metas, data);
+        return new TransactionInstruction(new PublicKey(programId), metas, data);
     }
 
     private JSONObject findInstruction(JSONObject idlRoot, String instructionName) {
