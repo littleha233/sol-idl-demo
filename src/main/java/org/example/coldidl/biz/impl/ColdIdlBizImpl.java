@@ -11,14 +11,16 @@ import org.example.project.SolIdlProject;
 import org.example.project.dto.BuildTxReq;
 import org.example.project.dto.SolIdlTxBuildExt;
 import org.example.sol.LegacyTransactionSerializer;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 
-@Service
+    @Service
 public class ColdIdlBizImpl implements ColdIdlBiz {
     private final SolIdlRegistryService solIdlRegistryService;
 
+    @Autowired
     public ColdIdlBizImpl(SolIdlRegistryService solIdlRegistryService) {
         if (solIdlRegistryService == null) {
             throw new IllegalArgumentException("solIdlRegistryService is required");
