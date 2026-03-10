@@ -29,6 +29,7 @@ java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \
 
 - 从统一 `contracts-config.json` 读取 SOL operation，并定位 IDL 元数据
 - 按 IDL args 顺序读取 `paramList` 并做 Borsh 编码（含 Anchor discriminator）
+- 当账户未显式提供且 IDL 含 `pda.seeds` 时，自动按 seeds 推导 PDA 账户（如 `config`）
 - 通过局部变量 mock 运行时参数：`computeGasLimit`、`computeGasPrice`
 - 支持 durable nonce（可选）
 - 输出：
