@@ -8,11 +8,10 @@ import org.example.coldidl.dto.BuildTxResultDto;
 import org.example.coldidl.dto.ContractInfoDto;
 import org.example.coldidl.dto.OperationDetailDto;
 import org.example.coldidl.dto.OperationInfoDto;
-import org.example.coldidl.service.SolIdlRegistryService;
 import org.example.coldidl.service.impl.SolIdlRegistryServiceImpl;
 import org.junit.jupiter.api.Test;
+import org.springframework.test.util.ReflectionTestUtils;
 
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,8 +24,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ColdIdlFlowTest {
 
     private ColdIdlController newController() throws Exception {
-        SolIdlRegistryService registryService = new SolIdlRegistryServiceImpl(Path.of("testdata/contracts-config.json"));
-        ColdIdlBiz biz = new ColdIdlBizImpl(registryService);
+        SolIdlRegistryServiceImpl registryService = new SolIdlRegistryServiceImpl();
+        ReflectionTestUtils.setField(registryService, "configPath", "idl/contracts-config.json");
+        registryService.init();
+
+        ColdIdlBizImpl bizImpl = new ColdIdlBizImpl();
+        ReflectionTestUtils.setField(bizImpl, "solIdlRegistryService", registryService);
+        ColdIdlBiz biz = bizImpl;
         return new ColdIdlController(biz);
     }
 

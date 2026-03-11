@@ -22,15 +22,6 @@ public class ColdIdlBizImpl implements ColdIdlBiz {
     @Autowired
     private SolIdlRegistryService solIdlRegistryService;
 
-    public ColdIdlBizImpl() {}
-
-    public ColdIdlBizImpl(SolIdlRegistryService solIdlRegistryService) {
-        if (solIdlRegistryService == null) {
-            throw new IllegalArgumentException("solIdlRegistryService is required");
-        }
-        this.solIdlRegistryService = solIdlRegistryService;
-    }
-
     @Override
     public List<ContractInfoDto> listContracts() {
         return solIdlRegistryService.listContracts();

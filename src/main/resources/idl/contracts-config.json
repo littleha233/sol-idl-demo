@@ -1,0 +1,48 @@
+{
+  "contracts": [
+    {
+      "contractId": "3001",
+      "contractKey": "aggregator",
+      "displayName": "Aggregator",
+      "contractAddress": "BHbxLfy5YPYKyrsTXr8cVzBnyKJYY9CGs5ozMzctKxvf",
+      "coinId": 446,
+      "chainCoinId": 3000,
+      "chainName": "SOL",
+      "idlPath": "set-safe/idl.json",
+      "operationList": [
+        {
+          "operationId": "1",
+          "operationKey": "set_safe",
+          "displayName": "SetSafe"
+        },
+        {
+          "operationId": "2",
+          "operationKey": "set_operator",
+          "displayName": "SetOperator"
+        }
+      ]
+    },
+    {
+      "contractId": "3002",
+      "contractKey": "vault_guard",
+      "displayName": "VaultGuard",
+      "contractAddress": "7wA8VprxXBr2fY6dkJ1XrF5rK4x7YQeAB9PtDq7KDQm9",
+      "coinId": 446,
+      "chainCoinId": 3000,
+      "chainName": "SOL",
+      "idlPath": "treasury-guard/idl.json",
+      "operationList": [
+        {
+          "operationId": "1",
+          "operationKey": "set_guardian",
+          "displayName": "SetGuardian"
+        },
+        {
+          "operationId": "2",
+          "operationKey": "set_limit",
+          "displayName": "SetLimit"
+        }
+      ]
+    }
+  ]
+}
