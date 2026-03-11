@@ -4,7 +4,7 @@ import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import org.example.project.SolIdlProject;
-import org.example.project.config.SolContractRegistry;
+import org.example.project.util.SolIdlConfigUtil;
 import org.example.project.dto.BuildTxReq;
 import org.example.project.dto.SolIdlTxBuildExt;
 import org.example.sol.Base58;
@@ -34,7 +34,7 @@ public class Main {
         req.setExt(buildExt(contractAddress, operationCode, paramListPath));
 
         LegacyTransactionSerializer.BuildResult result = project.buildTx(req);
-        SolContractRegistry.ResolvedSolOperation operation = project.resolveOperation(contractAddress, operationCode);
+        SolIdlConfigUtil.ResolvedSolOperation operation = project.resolveOperation(contractAddress, operationCode);
         JSONObject idl = readJsonObject(operation.getIdlPath());
 
         JSONObject output = new JSONObject(true);

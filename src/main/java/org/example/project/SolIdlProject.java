@@ -1,8 +1,8 @@
 package org.example.project;
 
-import org.example.project.config.SolContractRegistry;
 import org.example.project.dto.BuildTxReq;
 import org.example.project.dto.SolIdlTxBuildExt;
+import org.example.project.util.SolIdlConfigUtil;
 import org.example.sol.LegacyTransactionSerializer;
 import org.example.sol.idl.IdlInstructionBuilder;
 import org.example.sol.sdk.ComputeBudgetProgram;
@@ -21,17 +21,13 @@ public class SolIdlProject {
 
     private final IdlInstructionBuilder idlInstructionBuilder = new IdlInstructionBuilder();
     private final LegacyTransactionSerializer serializer = new LegacyTransactionSerializer();
-    private final SolContractRegistry contractRegistry;
+    private final Path contractsConfigPath;
 
     public SolIdlProject(Path contractsConfigPath) throws Exception {
-        this(SolContractRegistry.load(contractsConfigPath));
-    }
-
-    public SolIdlProject(SolContractRegistry contractRegistry) {
-        if (contractRegistry == null) {
-            throw new IllegalArgumentException("contractRegistry is required");
+        if (contractsConfigPath == null) {
+            throw new IllegalArgumentException("contractsConfigPath is required");
         }
-        this.contractRegistry = contractRegistry;
+        this.contractsConfigPath = contractsConfigPath.toAbsolutePath().normalize();
     }
 
     public LegacyTransactionSerializer.BuildResult buildTx(BuildTxReq<SolIdlTxBuildExt> req) throws Exception {
@@ -40,8 +36,8 @@ public class SolIdlProject {
         String from = req.getFrom();
         SolIdlTxBuildExt ext = req.getExt();
 
-        SolContractRegistry.ResolvedSolOperation operation =
-                contractRegistry.resolve(ext.getTo(), ext.getOperationCode());
+        SolIdlConfigUtil.ResolvedSolOperation operation =
+                SolIdlConfigUtil.resolve(contractsConfigPath, ext.getTo(), ext.getOperationCode());
 
         Message message = new Message();
 
@@ -68,8 +64,8 @@ public class SolIdlProject {
         return serializer.serializeUnsigned(message);
     }
 
-    public SolContractRegistry.ResolvedSolOperation resolveOperation(String contractAddress, String operationCode) {
-        return contractRegistry.resolve(contractAddress, operationCode);
+    public SolIdlConfigUtil.ResolvedSolOperation resolveOperation(String contractAddress, String operationCode) throws Exception {
+        return SolIdlConfigUtil.resolve(contractsConfigPath, contractAddress, operationCode);
     }
 
     protected NonceInfo getNonceAccount(String from) {
