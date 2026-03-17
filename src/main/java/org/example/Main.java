@@ -17,18 +17,17 @@ import java.util.List;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 5) {
+        if (args.length < 4) {
             printUsage();
             return;
         }
 
-        Path contractsConfigPath = Path.of(args[0]);
-        String from = args[1];
-        String contractAddress = args[2];
-        String operationCode = args[3];
-        Path paramListPath = Path.of(args[4]);
+        String from = args[0];
+        String contractAddress = args[1];
+        String operationCode = args[2];
+        Path paramListPath = Path.of(args[3]);
 
-        SolIdlProject project = new SolIdlProject(contractsConfigPath);
+        SolIdlProject project = new SolIdlProject();
         BuildTxReq<SolIdlTxBuildExt> req = new BuildTxReq<SolIdlTxBuildExt>();
         req.setFrom(from);
         req.setExt(buildExt(contractAddress, operationCode, paramListPath));
@@ -80,9 +79,9 @@ public class Main {
         String usage =
                 "Usage:\n" +
                 "  java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \\\n" +
-                "    <contracts-config.json> <from> <contractAddress> <operationCode> <param-list.json>\n\n" +
+                "    <from> <contractAddress> <operationCode> <param-list.json>\n\n" +
                 "Notes:\n" +
-                "- contracts-config.json 内定义 SOL operation 对应的 idlPath/instructionName/accounts 模板。\n" +
+                "- 默认从 classpath 固定读取 idl/contracts-config.json。\n" +
                 "- from 通过请求参数传入，不放在配置文件。\n" +
                 "- gas 与 nonce 在 SolIdlProject 内部局部 mock。\n" +
                 "- param-list.json 为数组，顺序必须与 IDL args 顺序一致。\n" +

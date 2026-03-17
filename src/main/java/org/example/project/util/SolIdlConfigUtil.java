@@ -3,16 +3,77 @@ package org.example.project.util;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
+import org.springframework.core.io.ClassPathResource;
 
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 
 public final class SolIdlConfigUtil {
+    public static final String DEFAULT_CONFIG_LOCATION = "idl/contracts-config.json";
 
     private SolIdlConfigUtil() {
+    }
+
+    public static Path prepareDefaultConfigPath() throws Exception {
+        return prepareConfigPath(DEFAULT_CONFIG_LOCATION);
+    }
+
+    public static Path prepareConfigPath(String configLocation) throws Exception {
+        if (isBlank(configLocation)) {
+            throw new IllegalArgumentException("configLocation is required");
+        }
+
+        Path filesystemPath = Path.of(configLocation);
+        if (Files.exists(filesystemPath)) {
+            return filesystemPath.toAbsolutePath().normalize();
+        }
+
+        ClassPathResource resource = new ClassPathResource(configLocation);
+        if (!resource.exists()) {
+            throw new IllegalArgumentException("contracts config not found: " + configLocation);
+        }
+
+        JSONObject root;
+        try (InputStream is = resource.getInputStream()) {
+            root = JSON.parseObject(is.readAllBytes(), JSONObject.class);
+        }
+
+        Path tempDir = Files.createTempDirectory("sol-idl-project-");
+        Path snapshotConfig = tempDir.resolve("contracts-config.json");
+        Files.writeString(snapshotConfig, JSON.toJSONString(root, true));
+
+        String classpathBaseDir = buildClasspathBaseDir(configLocation);
+        for (String idlPathRaw : collectIdlPaths(root)) {
+            if (isBlank(idlPathRaw)) {
+                continue;
+            }
+            Path rawPath = Path.of(idlPathRaw);
+            if (rawPath.isAbsolute()) {
+                continue;
+            }
+
+            String location = classpathBaseDir + idlPathRaw;
+            ClassPathResource idlResource = new ClassPathResource(location);
+            if (!idlResource.exists()) {
+                throw new IllegalArgumentException("idl resource not found: " + location);
+            }
+
+            byte[] idlBytes;
+            try (InputStream is = idlResource.getInputStream()) {
+                idlBytes = is.readAllBytes();
+            }
+
+            Path target = tempDir.resolve(idlPathRaw).normalize();
+            Files.createDirectories(target.getParent());
+            Files.write(target, idlBytes);
+        }
+        return snapshotConfig;
     }
 
     public static ResolvedSolOperation resolve(Path configPath, String contractAddress, String operationCode) throws Exception {
@@ -109,6 +170,42 @@ public final class SolIdlConfigUtil {
             return raw.toAbsolutePath().normalize();
         }
         return parent.resolve(raw).normalize();
+    }
+
+    private static Set<String> collectIdlPaths(JSONObject root) {
+        Set<String> out = new HashSet<String>();
+        JSONArray contracts = root.getJSONArray("contracts");
+        if (contracts == null) {
+            return out;
+        }
+
+        for (int i = 0; i < contracts.size(); i++) {
+            JSONObject contract = contracts.getJSONObject(i);
+            if (!isBlank(contract.getString("idlPath"))) {
+                out.add(contract.getString("idlPath"));
+            }
+
+            JSONArray operationList = contract.getJSONArray("operationList");
+            if (operationList == null) {
+                continue;
+            }
+            for (int j = 0; j < operationList.size(); j++) {
+                JSONObject operation = operationList.getJSONObject(j);
+                JSONObject solIdl = operation.getJSONObject("solIdl");
+                if (solIdl != null && !isBlank(solIdl.getString("idlPath"))) {
+                    out.add(solIdl.getString("idlPath"));
+                }
+            }
+        }
+        return out;
+    }
+
+    private static String buildClasspathBaseDir(String configLocation) {
+        int idx = configLocation.lastIndexOf('/');
+        if (idx < 0) {
+            return "";
+        }
+        return configLocation.substring(0, idx + 1);
     }
 
     private static Map<String, String> readAccounts(JSONObject accountsNode) {

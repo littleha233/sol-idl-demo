@@ -57,7 +57,7 @@ public class ColdIdlBizImpl implements ColdIdlBiz {
         ext.setParamList(orderedParamList);
         txReq.setExt(ext);
 
-        SolIdlProject solIdlProject = new SolIdlProject(solIdlRegistryService.getConfigPath());
+        SolIdlProject solIdlProject = new SolIdlProject();
         LegacyTransactionSerializer.BuildResult built = solIdlProject.buildTx(txReq);
 
         BuildTxResultDto out = new BuildTxResultDto();

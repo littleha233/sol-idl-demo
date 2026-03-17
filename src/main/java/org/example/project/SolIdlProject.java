@@ -23,7 +23,11 @@ public class SolIdlProject {
     private final LegacyTransactionSerializer serializer = new LegacyTransactionSerializer();
     private final Path contractsConfigPath;
 
-    public SolIdlProject(Path contractsConfigPath) throws Exception {
+    public SolIdlProject() throws Exception {
+        this(SolIdlConfigUtil.prepareDefaultConfigPath());
+    }
+
+    public SolIdlProject(Path contractsConfigPath) {
         if (contractsConfigPath == null) {
             throw new IllegalArgumentException("contractsConfigPath is required");
         }
