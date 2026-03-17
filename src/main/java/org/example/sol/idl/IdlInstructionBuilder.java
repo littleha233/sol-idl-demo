@@ -8,11 +8,11 @@ import org.example.sol.PdaUtil;
 import org.example.sol.sdk.AccountMeta;
 import org.example.sol.sdk.PublicKey;
 import org.example.sol.sdk.TransactionInstruction;
+import org.springframework.core.io.ClassPathResource;
 
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -22,12 +22,15 @@ import java.util.Map;
 public class IdlInstructionBuilder {
 
     public TransactionInstruction buildInstruction(
-            Path idlPath,
+            String idlResourcePath,
             String instructionName,
             Map<String, String> accounts,
             List<Object> paramList
     ) throws Exception {
-        JSONObject idlRoot = JSON.parseObject(Files.readString(idlPath));
+        JSONObject idlRoot;
+        try (InputStream is = new ClassPathResource(idlResourcePath).getInputStream()) {
+            idlRoot = JSON.parseObject(is.readAllBytes(), JSONObject.class);
+        }
         JSONObject instructionNode = findInstruction(idlRoot, instructionName);
         String programId = requireText(idlRoot.get("address"), "IDL program address");
 

@@ -15,14 +15,10 @@ import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -40,13 +36,10 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
 
     private volatile JSONObject registryRoot;
     private volatile String classpathBaseDir;
-    private volatile Path filesystemBaseDir;
-    private volatile Path runtimeConfigPath;
 
     @PostConstruct
     public void init() {
         loadIdlConfig();
-        buildRuntimeSnapshot();
     }
 
     @Override
@@ -139,14 +132,6 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
         return ordered;
     }
 
-    @Override
-    public Path getConfigPath() {
-        if (runtimeConfigPath == null) {
-            throw new IllegalStateException("runtime config snapshot is not ready");
-        }
-        return runtimeConfigPath;
-    }
-
     private void loadIdlConfig() {
         try {
             byte[] configBytes = loadConfigBytes();
@@ -185,74 +170,13 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
 
     private byte[] loadConfigBytes() throws Exception {
         ClassPathResource resource = new ClassPathResource(configPath);
-        if (resource.exists()) {
-            classpathBaseDir = buildClasspathBaseDir(configPath);
-            filesystemBaseDir = null;
-            try (InputStream is = resource.getInputStream()) {
-                return is.readAllBytes();
-            }
+        if (!resource.exists()) {
+            throw new IllegalArgumentException("config not found in classpath: " + configPath);
         }
-
-        Path file = Path.of(configPath);
-        if (!Files.exists(file)) {
-            throw new IllegalArgumentException("config not found in classpath or filesystem: " + configPath);
+        classpathBaseDir = buildClasspathBaseDir(configPath);
+        try (InputStream is = resource.getInputStream()) {
+            return is.readAllBytes();
         }
-        filesystemBaseDir = file.toAbsolutePath().normalize().getParent();
-        classpathBaseDir = null;
-        return Files.readAllBytes(file);
-    }
-
-    private void buildRuntimeSnapshot() {
-        try {
-            if (registryRoot == null) {
-                throw new IllegalStateException("registryRoot is empty");
-            }
-
-            Path tempDir = Files.createTempDirectory("sol-idl-registry-");
-            Path snapshotConfig = tempDir.resolve("contracts-config.json");
-            Files.createDirectories(snapshotConfig.getParent());
-            Files.writeString(snapshotConfig, JSON.toJSONString(registryRoot, true));
-
-            Set<String> idlPaths = collectIdlPaths();
-            for (String idlPathRaw : idlPaths) {
-                if (isBlank(idlPathRaw)) {
-                    continue;
-                }
-                Path rawPath = Path.of(idlPathRaw);
-                if (rawPath.isAbsolute()) {
-                    continue;
-                }
-
-                String resolvedLocation = resolveLocation(idlPathRaw);
-                byte[] idlBytes = readBytesByLocation(resolvedLocation);
-
-                Path target = tempDir.resolve(idlPathRaw).normalize();
-                Files.createDirectories(target.getParent());
-                Files.write(target, idlBytes);
-            }
-
-            runtimeConfigPath = snapshotConfig;
-        } catch (Exception e) {
-            throw new RuntimeException("build runtime sol idl snapshot failed", e);
-        }
-    }
-
-    private Set<String> collectIdlPaths() {
-        Set<String> out = new HashSet<String>();
-        for (SolIdlContractMeta contract : contractMap.values()) {
-            if (!isBlank(contract.getIdlPath())) {
-                out.add(contract.getIdlPath());
-            }
-            if (contract.getOperationList() == null) {
-                continue;
-            }
-            for (SolIdlOperationMeta operation : contract.getOperationList()) {
-                if (operation.getSolIdl() != null && !isBlank(operation.getSolIdl().getIdlPath())) {
-                    out.add(operation.getSolIdl().getIdlPath());
-                }
-            }
-        }
-        return out;
     }
 
     private OpCtx getOpCtx(String contractId, String operationId) {
@@ -320,22 +244,13 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
     }
 
     private byte[] readBytesByLocation(String location) throws Exception {
-        if (location.startsWith("classpath:")) {
-            String path = location.substring("classpath:".length());
-            ClassPathResource resource = new ClassPathResource(path);
-            if (!resource.exists()) {
-                throw new IllegalArgumentException("IDL classpath resource not found: " + path);
-            }
-            try (InputStream is = resource.getInputStream()) {
-                return is.readAllBytes();
-            }
+        ClassPathResource resource = new ClassPathResource(location);
+        if (!resource.exists()) {
+            throw new IllegalArgumentException("IDL classpath resource not found: " + location);
         }
-
-        Path path = Path.of(location);
-        if (!Files.exists(path)) {
-            throw new IllegalArgumentException("IDL file not found: " + path);
+        try (InputStream is = resource.getInputStream()) {
+            return is.readAllBytes();
         }
-        return Files.readAllBytes(path);
     }
 
     private String resolveLocation(String idlPathRaw) {
@@ -344,34 +259,12 @@ public class SolIdlRegistryServiceImpl implements SolIdlRegistryService {
         }
 
         if (idlPathRaw.startsWith("classpath:")) {
-            return idlPathRaw;
+            return idlPathRaw.substring("classpath:".length());
         }
-
-        Path asPath = Path.of(idlPathRaw);
-        if (asPath.isAbsolute()) {
-            return asPath.normalize().toString();
+        if (idlPathRaw.startsWith("/")) {
+            return idlPathRaw.substring(1);
         }
-
-        if (filesystemBaseDir != null) {
-            Path candidate = filesystemBaseDir.resolve(idlPathRaw).normalize();
-            if (Files.exists(candidate)) {
-                return candidate.toString();
-            }
-        }
-
-        if (classpathBaseDir != null) {
-            String classpathCandidate = classpathBaseDir + idlPathRaw;
-            ClassPathResource resource = new ClassPathResource(classpathCandidate);
-            if (resource.exists()) {
-                return "classpath:" + classpathCandidate;
-            }
-        }
-
-        if (Files.exists(asPath)) {
-            return asPath.toAbsolutePath().normalize().toString();
-        }
-
-        throw new IllegalArgumentException("Unable to resolve idlPath: " + idlPathRaw);
+        return classpathBaseDir + idlPathRaw;
     }
 
     private String buildOperationCode(String contractId, String operationId) {

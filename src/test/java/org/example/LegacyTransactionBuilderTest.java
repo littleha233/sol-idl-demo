@@ -7,9 +7,10 @@ import org.example.project.dto.BuildTxReq;
 import org.example.project.dto.SolIdlTxBuildExt;
 import org.example.sol.LegacyTransactionSerializer;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.io.ClassPathResource;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -17,8 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LegacyTransactionBuilderTest {
-    private static final Path ROOT_TESTDATA_DIR = Path.of("testdata");
-    private static final Path SET_SAFE_TESTDATA_DIR = ROOT_TESTDATA_DIR.resolve("set-safe");
+    private static final String SET_SAFE_TESTDATA_DIR = "testdata/set-safe/";
 
     @Test
     void buildLegacyTxFromSolContractConfigAndIdlParamList() throws Exception {
@@ -35,6 +35,8 @@ class LegacyTransactionBuilderTest {
     @Test
     void buildLegacyTxForSetOperator() throws Exception {
         LegacyTransactionSerializer.BuildResult result = buildTx("set_operator", "param-list-set-operator.json");
+        String rawData = result.getUnsignedTransactionBase64();
+        System.out.println(rawData);
 
         assertFalse(result.getMessageBase64().isBlank());
         assertFalse(result.getUnsignedTransactionBase64().isBlank());
@@ -53,12 +55,14 @@ class LegacyTransactionBuilderTest {
         ext.setParamList(readParamList(paramListFile));
         request.setExt(ext);
 
-        SolIdlProject project = new SolIdlProject(ROOT_TESTDATA_DIR.resolve("contracts-config.json"));
+        SolIdlProject project = new SolIdlProject();
         return project.buildTx(request);
     }
 
     private List<Object> readParamList(String filename) throws Exception {
-        JSONArray jsonArray = JSON.parseArray(Files.readString(SET_SAFE_TESTDATA_DIR.resolve(filename)));
-        return jsonArray.toJavaList(Object.class);
+        try (InputStream is = new ClassPathResource(SET_SAFE_TESTDATA_DIR + filename).getInputStream()) {
+            JSONArray jsonArray = JSON.parseArray(new String(is.readAllBytes(), StandardCharsets.UTF_8));
+            return jsonArray.toJavaList(Object.class);
+        }
     }
 }

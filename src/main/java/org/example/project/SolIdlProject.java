@@ -10,7 +10,6 @@ import org.example.sol.sdk.Message;
 import org.example.sol.sdk.SystemProgram;
 import org.example.sol.sdk.TransactionInstruction;
 
-import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -21,17 +20,17 @@ public class SolIdlProject {
 
     private final IdlInstructionBuilder idlInstructionBuilder = new IdlInstructionBuilder();
     private final LegacyTransactionSerializer serializer = new LegacyTransactionSerializer();
-    private final Path contractsConfigPath;
+    private final String contractsConfigResourcePath;
 
     public SolIdlProject() throws Exception {
-        this(SolIdlConfigUtil.prepareDefaultConfigPath());
+        this(SolIdlConfigUtil.DEFAULT_CONFIG_LOCATION);
     }
 
-    public SolIdlProject(Path contractsConfigPath) {
-        if (contractsConfigPath == null) {
-            throw new IllegalArgumentException("contractsConfigPath is required");
+    public SolIdlProject(String contractsConfigResourcePath) {
+        if (contractsConfigResourcePath == null || contractsConfigResourcePath.trim().isEmpty()) {
+            throw new IllegalArgumentException("contractsConfigResourcePath is required");
         }
-        this.contractsConfigPath = contractsConfigPath.toAbsolutePath().normalize();
+        this.contractsConfigResourcePath = contractsConfigResourcePath;
     }
 
     public LegacyTransactionSerializer.BuildResult buildTx(BuildTxReq<SolIdlTxBuildExt> req) throws Exception {
@@ -41,7 +40,7 @@ public class SolIdlProject {
         SolIdlTxBuildExt ext = req.getExt();
 
         SolIdlConfigUtil.ResolvedSolOperation operation =
-                SolIdlConfigUtil.resolve(contractsConfigPath, ext.getTo(), ext.getOperationCode());
+                SolIdlConfigUtil.resolve(contractsConfigResourcePath, ext.getTo(), ext.getOperationCode());
 
         Message message = new Message();
 
@@ -58,7 +57,7 @@ public class SolIdlProject {
 
         Map<String, String> accounts = materializeAccounts(operation.getAccountTemplate(), from, ext.getTo());
         TransactionInstruction idlInstruction = idlInstructionBuilder.buildInstruction(
-                operation.getIdlPath(),
+                operation.getIdlResourcePath(),
                 operation.getInstructionName(),
                 accounts,
                 ext.getParamList()
@@ -69,7 +68,7 @@ public class SolIdlProject {
     }
 
     public SolIdlConfigUtil.ResolvedSolOperation resolveOperation(String contractAddress, String operationCode) throws Exception {
-        return SolIdlConfigUtil.resolve(contractsConfigPath, contractAddress, operationCode);
+        return SolIdlConfigUtil.resolve(contractsConfigResourcePath, contractAddress, operationCode);
     }
 
     protected NonceInfo getNonceAccount(String from) {

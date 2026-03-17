@@ -9,9 +9,10 @@ import org.example.project.dto.BuildTxReq;
 import org.example.project.dto.SolIdlTxBuildExt;
 import org.example.sol.Base58;
 import org.example.sol.LegacyTransactionSerializer;
+import org.springframework.core.io.ClassPathResource;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 public class Main {
@@ -25,16 +26,16 @@ public class Main {
         String from = args[0];
         String contractAddress = args[1];
         String operationCode = args[2];
-        Path paramListPath = Path.of(args[3]);
+        String paramListResourcePath = args[3];
 
         SolIdlProject project = new SolIdlProject();
         BuildTxReq<SolIdlTxBuildExt> req = new BuildTxReq<SolIdlTxBuildExt>();
         req.setFrom(from);
-        req.setExt(buildExt(contractAddress, operationCode, paramListPath));
+        req.setExt(buildExt(contractAddress, operationCode, paramListResourcePath));
 
         LegacyTransactionSerializer.BuildResult result = project.buildTx(req);
         SolIdlConfigUtil.ResolvedSolOperation operation = project.resolveOperation(contractAddress, operationCode);
-        JSONObject idl = readJsonObject(operation.getIdlPath());
+        JSONObject idl = readJsonObject(operation.getIdlResourcePath());
 
         JSONObject output = new JSONObject(true);
         output.put("operationCode", operationCode);
@@ -50,8 +51,8 @@ public class Main {
         System.out.println(JSON.toJSONString(output, true));
     }
 
-    private static SolIdlTxBuildExt buildExt(String contractAddress, String operationCode, Path paramListPath) throws Exception {
-        JSONArray paramListJson = readJsonArray(paramListPath);
+    private static SolIdlTxBuildExt buildExt(String contractAddress, String operationCode, String paramListResourcePath) throws Exception {
+        JSONArray paramListJson = readJsonArray(paramListResourcePath);
         List<Object> paramList = paramListJson.toJavaList(Object.class);
 
         SolIdlTxBuildExt ext = new SolIdlTxBuildExt();
@@ -61,30 +62,28 @@ public class Main {
         return ext;
     }
 
-    private static JSONObject readJsonObject(Path path) throws Exception {
-        if (!Files.exists(path)) {
-            throw new IllegalArgumentException("File not found: " + path);
+    private static JSONObject readJsonObject(String resourcePath) throws Exception {
+        try (InputStream is = new ClassPathResource(resourcePath).getInputStream()) {
+            return JSON.parseObject(is.readAllBytes(), JSONObject.class);
         }
-        return JSON.parseObject(Files.readString(path));
     }
 
-    private static JSONArray readJsonArray(Path path) throws Exception {
-        if (!Files.exists(path)) {
-            throw new IllegalArgumentException("File not found: " + path);
+    private static JSONArray readJsonArray(String resourcePath) throws Exception {
+        try (InputStream is = new ClassPathResource(resourcePath).getInputStream()) {
+            return JSON.parseArray(new String(is.readAllBytes(), StandardCharsets.UTF_8));
         }
-        return JSON.parseArray(Files.readString(path));
     }
 
     private static void printUsage() {
         String usage =
                 "Usage:\n" +
                 "  java -cp target/sol-idl-demo-1.0-SNAPSHOT.jar org.example.Main \\\n" +
-                "    <from> <contractAddress> <operationCode> <param-list.json>\n\n" +
+                "    <from> <contractAddress> <operationCode> <param-list-resource>\n\n" +
                 "Notes:\n" +
                 "- 默认从 classpath 固定读取 idl/contracts-config.json。\n" +
                 "- from 通过请求参数传入，不放在配置文件。\n" +
                 "- gas 与 nonce 在 SolIdlProject 内部局部 mock。\n" +
-                "- param-list.json 为数组，顺序必须与 IDL args 顺序一致。\n" +
+                "- param-list-resource 例如 testdata/set-safe/param-list.json。\n" +
                 "- 该工具只构建 legacy 交易，不签名。\n";
         System.out.println(usage);
     }

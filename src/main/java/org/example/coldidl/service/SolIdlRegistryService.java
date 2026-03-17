@@ -4,7 +4,6 @@ import org.example.coldidl.dto.ContractInfoDto;
 import org.example.coldidl.dto.OperationDetailDto;
 import org.example.coldidl.dto.OperationInfoDto;
 
-import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 
@@ -18,8 +17,6 @@ public interface SolIdlRegistryService {
     BuildMeta resolveBuildMeta(String contractId, String operationId);
 
     List<Object> buildOrderedParamList(BuildMeta buildMeta, Map<String, Object> paramMap);
-
-    Path getConfigPath();
 
     class BuildMeta {
         private final String contractId;

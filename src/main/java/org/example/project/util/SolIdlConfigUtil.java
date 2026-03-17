@@ -6,13 +6,10 @@ import com.alibaba.fastjson.JSONObject;
 import org.springframework.core.io.ClassPathResource;
 
 import java.io.InputStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 
 public final class SolIdlConfigUtil {
     public static final String DEFAULT_CONFIG_LOCATION = "idl/contracts-config.json";
@@ -20,76 +17,18 @@ public final class SolIdlConfigUtil {
     private SolIdlConfigUtil() {
     }
 
-    public static Path prepareDefaultConfigPath() throws Exception {
-        return prepareConfigPath(DEFAULT_CONFIG_LOCATION);
-    }
-
-    public static Path prepareConfigPath(String configLocation) throws Exception {
-        if (isBlank(configLocation)) {
-            throw new IllegalArgumentException("configLocation is required");
+    public static ResolvedSolOperation resolve(String configResourcePath, String contractAddress, String operationCode) throws Exception {
+        if (isBlank(configResourcePath)) {
+            throw new IllegalArgumentException("configResourcePath is required");
         }
-
-        Path filesystemPath = Path.of(configLocation);
-        if (Files.exists(filesystemPath)) {
-            return filesystemPath.toAbsolutePath().normalize();
-        }
-
-        ClassPathResource resource = new ClassPathResource(configLocation);
-        if (!resource.exists()) {
-            throw new IllegalArgumentException("contracts config not found: " + configLocation);
-        }
-
-        JSONObject root;
-        try (InputStream is = resource.getInputStream()) {
-            root = JSON.parseObject(is.readAllBytes(), JSONObject.class);
-        }
-
-        Path tempDir = Files.createTempDirectory("sol-idl-project-");
-        Path snapshotConfig = tempDir.resolve("contracts-config.json");
-        Files.writeString(snapshotConfig, JSON.toJSONString(root, true));
-
-        String classpathBaseDir = buildClasspathBaseDir(configLocation);
-        for (String idlPathRaw : collectIdlPaths(root)) {
-            if (isBlank(idlPathRaw)) {
-                continue;
-            }
-            Path rawPath = Path.of(idlPathRaw);
-            if (rawPath.isAbsolute()) {
-                continue;
-            }
-
-            String location = classpathBaseDir + idlPathRaw;
-            ClassPathResource idlResource = new ClassPathResource(location);
-            if (!idlResource.exists()) {
-                throw new IllegalArgumentException("idl resource not found: " + location);
-            }
-
-            byte[] idlBytes;
-            try (InputStream is = idlResource.getInputStream()) {
-                idlBytes = is.readAllBytes();
-            }
-
-            Path target = tempDir.resolve(idlPathRaw).normalize();
-            Files.createDirectories(target.getParent());
-            Files.write(target, idlBytes);
-        }
-        return snapshotConfig;
-    }
-
-    public static ResolvedSolOperation resolve(Path configPath, String contractAddress, String operationCode) throws Exception {
-        if (configPath == null) {
-            throw new IllegalArgumentException("contracts config path is required");
-        }
-        if (!Files.exists(configPath)) {
-            throw new IllegalArgumentException("contracts config file not found: " + configPath);
-        }
-        JSONObject root = JSON.parseObject(Files.readString(configPath));
-        return resolve(root, configPath.toAbsolutePath().normalize(), contractAddress, operationCode);
+        JSONObject root = readJsonObject(configResourcePath);
+        String resourceBaseDir = buildClasspathBaseDir(configResourcePath);
+        return resolve(root, resourceBaseDir, contractAddress, operationCode);
     }
 
     public static ResolvedSolOperation resolve(
             JSONObject root,
-            Path configPath,
+            String resourceBaseDir,
             String contractAddress,
             String operationCode
     ) {
@@ -127,29 +66,28 @@ public final class SolIdlConfigUtil {
                 }
 
                 JSONObject solIdl = operationNode.getJSONObject("solIdl");
-                String idlPathRaw;
+                String idlResourcePath;
                 String instructionName;
                 Map<String, String> accountTemplate;
 
                 if (solIdl != null) {
-                    idlPathRaw = requiredText(solIdl.get("idlPath"), "solIdl.idlPath");
+                    idlResourcePath = resolveIdlResourcePath(resourceBaseDir, requiredText(solIdl.get("idlPath"), "solIdl.idlPath"));
                     instructionName = requiredText(solIdl.get("instructionName"), "solIdl.instructionName");
                     accountTemplate = readAccounts(solIdl.getJSONObject("accounts"));
                 } else {
-                    idlPathRaw = requiredText(contractNode.get("idlPath"), "idlPath");
+                    idlResourcePath = resolveIdlResourcePath(resourceBaseDir, requiredText(contractNode.get("idlPath"), "idlPath"));
                     instructionName = requiredText(operationNode.get("operationKey"), "operationKey");
                     JSONObject operationAccounts = operationNode.getJSONObject("accounts");
                     JSONObject contractAccounts = contractNode.getJSONObject("accounts");
                     accountTemplate = readAccounts(operationAccounts != null ? operationAccounts : contractAccounts);
                 }
-                Path idlPath = resolveIdlPath(configPath, idlPathRaw);
 
                 return new ResolvedSolOperation(
                         contractNode.getString("contractKey"),
                         configuredAddress,
                         operationCode,
                         instructionName,
-                        idlPath,
+                        idlResourcePath,
                         accountTemplate
                 );
             }
@@ -160,52 +98,37 @@ public final class SolIdlConfigUtil {
         );
     }
 
-    private static Path resolveIdlPath(Path configPath, String rawPath) {
-        Path raw = Path.of(rawPath);
-        if (raw.isAbsolute()) {
-            return raw.normalize();
+    public static JSONObject readJsonObject(String resourcePath) throws Exception {
+        try (InputStream is = new ClassPathResource(resourcePath).getInputStream()) {
+            return JSON.parseObject(is.readAllBytes(), JSONObject.class);
         }
-        Path parent = configPath.getParent();
-        if (parent == null) {
-            return raw.toAbsolutePath().normalize();
-        }
-        return parent.resolve(raw).normalize();
     }
 
-    private static Set<String> collectIdlPaths(JSONObject root) {
-        Set<String> out = new HashSet<String>();
-        JSONArray contracts = root.getJSONArray("contracts");
-        if (contracts == null) {
-            return out;
+    public static JSONArray readJsonArray(String resourcePath) throws Exception {
+        try (InputStream is = new ClassPathResource(resourcePath).getInputStream()) {
+            return JSON.parseArray(new String(is.readAllBytes(), StandardCharsets.UTF_8));
         }
-
-        for (int i = 0; i < contracts.size(); i++) {
-            JSONObject contract = contracts.getJSONObject(i);
-            if (!isBlank(contract.getString("idlPath"))) {
-                out.add(contract.getString("idlPath"));
-            }
-
-            JSONArray operationList = contract.getJSONArray("operationList");
-            if (operationList == null) {
-                continue;
-            }
-            for (int j = 0; j < operationList.size(); j++) {
-                JSONObject operation = operationList.getJSONObject(j);
-                JSONObject solIdl = operation.getJSONObject("solIdl");
-                if (solIdl != null && !isBlank(solIdl.getString("idlPath"))) {
-                    out.add(solIdl.getString("idlPath"));
-                }
-            }
-        }
-        return out;
     }
 
-    private static String buildClasspathBaseDir(String configLocation) {
-        int idx = configLocation.lastIndexOf('/');
+    private static String resolveIdlResourcePath(String resourceBaseDir, String rawPath) {
+        if (isBlank(rawPath)) {
+            throw new IllegalArgumentException("idlPath is blank");
+        }
+        if (rawPath.startsWith("classpath:")) {
+            return rawPath.substring("classpath:".length());
+        }
+        if (rawPath.startsWith("/")) {
+            return rawPath.substring(1);
+        }
+        return resourceBaseDir + rawPath;
+    }
+
+    private static String buildClasspathBaseDir(String path) {
+        int idx = path.lastIndexOf('/');
         if (idx < 0) {
             return "";
         }
-        return configLocation.substring(0, idx + 1);
+        return path.substring(0, idx + 1);
     }
 
     private static Map<String, String> readAccounts(JSONObject accountsNode) {
@@ -235,7 +158,7 @@ public final class SolIdlConfigUtil {
         private final String contractAddress;
         private final String operationCode;
         private final String instructionName;
-        private final Path idlPath;
+        private final String idlResourcePath;
         private final Map<String, String> accountTemplate;
 
         public ResolvedSolOperation(
@@ -243,14 +166,14 @@ public final class SolIdlConfigUtil {
                 String contractAddress,
                 String operationCode,
                 String instructionName,
-                Path idlPath,
+                String idlResourcePath,
                 Map<String, String> accountTemplate
         ) {
             this.contractKey = contractKey;
             this.contractAddress = contractAddress;
             this.operationCode = operationCode;
             this.instructionName = instructionName;
-            this.idlPath = idlPath;
+            this.idlResourcePath = idlResourcePath;
             this.accountTemplate = Collections.unmodifiableMap(new LinkedHashMap<String, String>(accountTemplate));
         }
 
@@ -270,8 +193,8 @@ public final class SolIdlConfigUtil {
             return instructionName;
         }
 
-        public Path getIdlPath() {
-            return idlPath;
+        public String getIdlResourcePath() {
+            return idlResourcePath;
         }
 
         public Map<String, String> getAccountTemplate() {
